@@ -14,8 +14,39 @@ from django.urls import reverse
 import openpyxl
 from django.views.decorators.csrf import csrf_exempt
 import pandas as pd
-from .form import ExcelUploadForm, SeccionForm, FechaInsumoForm, PerfilForm, SolicitudCompraForm, SolicitudCompraFormcrear, UserCreateForm, UserEditForm, UserCreateForm, DepartamentoForm, UsuarioDepartamentoForm, InstitucionForm
-from .models import  FechaInsumo, Producto, Insumo, InsumoSolicitud, Perfil, Departamento, Seccion, SolicitudCompra, Subproducto, UsuarioDepartamento, Institucion, Servicio, ServicioSolicitud
+from .form import (
+    ExcelUploadForm,
+    SeccionForm,
+    FechaInsumoForm,
+    PerfilForm,
+    SolicitudCompraForm,
+    SolicitudCompraFormcrear,
+    UserCreateForm,
+    UserEditForm,
+    UserCreateForm,
+    DepartamentoForm,
+    UsuarioDepartamentoForm,
+    InstitucionForm,
+    CDPForm,
+)
+from .models import (
+    FechaInsumo,
+    Producto,
+    Insumo,
+    InsumoSolicitud,
+    Perfil,
+    Departamento,
+    Seccion,
+    SolicitudCompra,
+    Subproducto,
+    UsuarioDepartamento,
+    Institucion,
+    Servicio,
+    ServicioSolicitud,
+    CDP,
+    CDO,
+    PresupuestoRenglon,
+)
 from django.views.generic import CreateView
 from django.views.generic import ListView
 from django.urls import reverse_lazy
@@ -476,8 +507,51 @@ class SolicitudCompraDetailView(DetailView):
         context['ultima_fecha_insumo'] = FechaInsumo.objects.last()
         context['productos'] = Producto.objects.filter(activo=True)
         context['subproductos'] = Subproducto.objects.filter(activo=True)
+        context['cdps'] = solicitud.cdps.select_related('renglon', 'renglon__presupuesto_anual').all()
+        context['tiene_cdo'] = solicitud.cdps.filter(cdo__isnull=False).exists()
+        context['puede_crear_cdp'] = (
+            self.request.user.is_superuser
+            or self.request.user.groups.filter(name__in=['Administrador', 'scompras']).exists()
+        ) and not context['tiene_cdo']
 
         return context
+
+
+@login_required
+@grupo_requerido('Administrador', 'scompras')
+def crear_cdp_solicitud(request, solicitud_id):
+    solicitud = get_object_or_404(SolicitudCompra, pk=solicitud_id)
+
+    if solicitud.cdps.filter(cdo__isnull=False).exists():
+        messages.error(request, 'La solicitud ya cuenta con un CDO generado, no puede crear nuevos CDP.')
+        return redirect('scompras:detalle_solicitud', pk=solicitud.id)
+
+    if request.method == 'POST':
+        form = CDPForm(solicitud, request.POST)
+        if form.is_valid():
+            cdp = form.save(commit=False)
+            cdp.solicitud = solicitud
+            try:
+                cdp.save()
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, 'CDP creado y presupuesto reservado correctamente.')
+                return redirect('scompras:detalle_solicitud', pk=solicitud.id)
+    else:
+        form = CDPForm(solicitud)
+
+    renglones_disponibles = form.fields['renglon'].queryset
+
+    return render(
+        request,
+        'scompras/cdp_form.html',
+        {
+            'form': form,
+            'solicitud': solicitud,
+            'renglones_disponibles': renglones_disponibles,
+        },
+    )
 
 
 from django.db.models.signals import pre_save

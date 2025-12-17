@@ -133,9 +133,51 @@
             <p style="opacity: 0.8; font-size: 16px;">
               {{ solicitud.descripcion }}
             </p>
-            
+
+            <div class="card mt-3">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Seguimiento presupuestario</h5>
+                {% if puede_crear_cdp %}
+                  <a class="btn btn-primary btn-sm" href="{% url 'scompras:crear_cdp_solicitud' solicitud.id %}">Crear CDP</a>
+                {% endif %}
+              </div>
+              <div class="card-body">
+                {% if cdps %}
+                  <div class="table-responsive">
+                    <table class="table table-bordered">
+                      <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>Estado</th>
+                          <th>Renglón</th>
+                          <th>Monto</th>
+                          <th>CDO</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for cdp in cdps %}
+                          <tr>
+                            <td>#{{ cdp.id }}</td>
+                            <td>{{ cdp.get_estado_display }}</td>
+                            <td>{{ cdp.renglon.codigo_renglon }} ({{ cdp.renglon.presupuesto_anual.anio }})</td>
+                            <td>{{ cdp.monto }}</td>
+                            <td>{% if cdp.cdo %}Emitido{% else %}-{% endif %}</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                {% else %}
+                  <p class="text-muted mb-0">La solicitud aún no tiene CDP registrados.</p>
+                {% endif %}
+                {% if tiene_cdo %}
+                  <p class="text-danger mt-2 mb-0">Esta solicitud ya cuenta con CDO ejecutado; no se permiten nuevos CDP.</p>
+                {% endif %}
+              </div>
+            </div>
+
           </td>
-          
+
         </tr>
 
         <!-- Línea divisoria -->

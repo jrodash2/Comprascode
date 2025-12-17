@@ -4,7 +4,19 @@ from django.forms import CheckboxInput, DateInput, inlineformset_factory, modelf
 from django.core.exceptions import ValidationError
 
 
-from .models import FechaInsumo, Insumo, Perfil, Departamento, Seccion, SolicitudCompra, Subproducto, UsuarioDepartamento, Institucion
+from .models import (
+    FechaInsumo,
+    Insumo,
+    Perfil,
+    Departamento,
+    Seccion,
+    SolicitudCompra,
+    Subproducto,
+    UsuarioDepartamento,
+    Institucion,
+    CDP,
+    PresupuestoRenglon,
+)
 
 from django.db.models import Sum, F, Value
 from django.db.models.functions import Coalesce
@@ -430,3 +442,44 @@ class FechaInsumoForm(forms.ModelForm):
         super(FechaInsumoForm, self).__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' form-control'
+
+
+class CDPForm(forms.ModelForm):
+    def __init__(self, solicitud, *args, **kwargs):
+        self.solicitud = solicitud
+        super().__init__(*args, **kwargs)
+        queryset = PresupuestoRenglon.objects.select_related('presupuesto_anual').order_by('codigo_renglon')
+        if solicitud and solicitud.fecha_solicitud:
+            queryset = queryset.filter(presupuesto_anual__anio=solicitud.fecha_solicitud.year)
+        self.fields['renglon'].queryset = queryset
+        self.fields['renglon'].label_from_instance = (
+            lambda obj: f"{obj.codigo_renglon} ({obj.presupuesto_anual.anio}) - Disponible: {obj.monto_disponible}"
+        )
+        for field in self.fields.values():
+            field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' form-control'
+
+    class Meta:
+        model = CDP
+        fields = ['renglon', 'monto']
+        widgets = {
+            'monto': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        renglon = cleaned_data.get('renglon')
+        monto = cleaned_data.get('monto')
+
+        if not self.solicitud:
+            raise ValidationError('Debe asociar la solicitud para crear el CDP.')
+
+        if self.solicitud.cdps.filter(cdo__isnull=False).exists():
+            raise ValidationError('La solicitud ya tiene un CDO; no se pueden crear nuevos CDP.')
+
+        if renglon and monto is not None:
+            if monto <= 0:
+                raise ValidationError('El monto debe ser mayor que cero.')
+            if monto > renglon.monto_disponible:
+                raise ValidationError('El monto del CDP excede la disponibilidad del renglón.')
+
+        return cleaned_data
