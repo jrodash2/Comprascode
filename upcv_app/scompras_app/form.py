@@ -449,9 +449,14 @@ class CDPForm(forms.ModelForm):
     def __init__(self, solicitud, *args, **kwargs):
         self.solicitud = solicitud
         super().__init__(*args, **kwargs)
+        activo = PresupuestoAnual.presupuesto_activo()
         queryset = PresupuestoRenglon.objects.select_related('presupuesto_anual').order_by('codigo_renglon')
-        if solicitud and solicitud.fecha_solicitud:
-            queryset = queryset.filter(presupuesto_anual__anio=solicitud.fecha_solicitud.year)
+        if activo:
+            queryset = queryset.filter(presupuesto_anual=activo)
+        else:
+            queryset = queryset.none()
+
+        self.presupuesto_activo = activo
         self.fields['renglon'].queryset = queryset
         self.fields['renglon'].label_from_instance = (
             lambda obj: f"{obj.codigo_renglon} ({obj.presupuesto_anual.anio}) - Disponible: {obj.monto_disponible}"
@@ -480,6 +485,10 @@ class CDPForm(forms.ModelForm):
         if renglon and monto is not None:
             if monto <= 0:
                 raise ValidationError('El monto debe ser mayor que cero.')
+            if not self.presupuesto_activo:
+                raise ValidationError('No hay presupuesto activo para registrar el CDP.')
+            if renglon.presupuesto_anual_id != self.presupuesto_activo.id:
+                raise ValidationError('El renglón seleccionado no pertenece al presupuesto activo.')
             if monto > renglon.monto_disponible:
                 raise ValidationError('El monto del CDP excede la disponibilidad del renglón.')
 

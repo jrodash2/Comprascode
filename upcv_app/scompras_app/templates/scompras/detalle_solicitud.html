@@ -139,6 +139,8 @@
                 <h5 class="mb-0">Seguimiento presupuestario</h5>
                 {% if puede_crear_cdp %}
                   <a class="btn btn-primary btn-sm" href="{% url 'scompras:crear_cdp_solicitud' solicitud.id %}">Crear CDP</a>
+                {% elif not presupuesto_activo %}
+                  <span class="text-danger small">Active un presupuesto para habilitar CDP.</span>
                 {% endif %}
               </div>
               <div class="card-body">
@@ -164,9 +166,11 @@
                             <td>{{ cdp.monto }}</td>
                             <td>{% if cdp.cdo %}Emitido{% else %}-{% endif %}</td>
                             <td>
-                              {% if puede_gestionar_cdp and cdp.estado == 'RESERVADO' %}
+                              {% if puede_gestionar_cdp and cdp.estado == 'RESERVADO' and cdp.renglon.presupuesto_anual.activo %}
                                 <a class="btn btn-sm btn-success" href="{% url 'scompras:ejecutar_cdp' cdp.id %}">Ejecutar CDO</a>
                                 <a class="btn btn-sm btn-warning" href="{% url 'scompras:liberar_cdp' cdp.id %}">Liberar CDP</a>
+                              {% elif cdp.estado == 'RESERVADO' and not cdp.renglon.presupuesto_anual.activo %}
+                                <span class="text-danger">Presupuesto inactivo</span>
                               {% else %}
                                 <span class="text-muted">-</span>
                               {% endif %}

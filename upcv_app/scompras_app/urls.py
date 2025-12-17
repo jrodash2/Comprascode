@@ -38,6 +38,8 @@ urlpatterns = [
     path('presupuestos/', views.presupuesto_anual_list, name='presupuesto_anual_list'),
     path('presupuestos/crear/', views.presupuesto_anual_crear, name='presupuesto_anual_crear'),
     path('presupuestos/<int:presupuesto_id>/', views.presupuesto_anual_detalle, name='presupuesto_anual_detalle'),
+    path('presupuestos/<int:presupuesto_id>/activar/', views.activar_presupuesto, name='activar_presupuesto'),
+    path('presupuestos/renglon/<int:renglon_id>/kardex/', views.kardex_renglon, name='kardex_renglon'),
 
     # Departamentos
     path('departamento/', views.crear_departamento, name='crear_departamento'),

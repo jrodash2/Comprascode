@@ -535,6 +535,9 @@ def presupuesto_anual_detalle(request, presupuesto_id):
     renglones = presupuesto.renglones.all()
 
     if request.method == 'POST':
+        if not presupuesto.activo:
+            messages.error(request, 'Solo el presupuesto activo permite crear renglones. Active este presupuesto primero.')
+            return redirect('scompras:presupuesto_anual_detalle', presupuesto_id=presupuesto.id)
         form = PresupuestoRenglonForm(request.POST)
         if form.is_valid():
             renglon = form.save(commit=False)
@@ -570,6 +573,38 @@ def presupuesto_anual_detalle(request, presupuesto_id):
         },
     )
 
+
+@login_required
+@grupo_requerido('Administrador', 'scompras')
+@require_POST
+def activar_presupuesto(request, presupuesto_id):
+    presupuesto = get_object_or_404(PresupuestoAnual, pk=presupuesto_id)
+    presupuesto.activar()
+    messages.success(request, f'Presupuesto {presupuesto.anio} activado. Los demás presupuestos han sido desactivados.')
+    return redirect('scompras:presupuesto_anual_detalle', presupuesto_id=presupuesto.id)
+
+
+@login_required
+@grupo_requerido('Administrador', 'scompras')
+def kardex_renglon(request, renglon_id):
+    renglon = get_object_or_404(
+        PresupuestoRenglon.objects.select_related('presupuesto_anual'), pk=renglon_id
+    )
+    movimientos = renglon.kardex.all()
+    tipo = request.GET.get('tipo')
+    if tipo:
+        movimientos = movimientos.filter(tipo=tipo)
+    return render(
+        request,
+        'scompras/kardex_renglon.html',
+        {
+            'renglon': renglon,
+            'movimientos': movimientos,
+            'tipos': KardexPresupuesto.TipoMovimiento.choices,
+            'tipo_filtrado': tipo,
+        },
+    )
+
 class SolicitudCompraDetailView(DetailView):
     model = SolicitudCompra
     template_name = 'scompras/detalle_solicitud.html'
@@ -601,7 +636,12 @@ class SolicitudCompraDetailView(DetailView):
             or self.request.user.groups.filter(name__in=['Administrador', 'scompras']).exists()
         )
 
-        context['puede_crear_cdp'] = usuario_puede_presupuesto and not context['tiene_cdo']
+        presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+        context['presupuesto_activo'] = presupuesto_activo
+
+        context['puede_crear_cdp'] = (
+            usuario_puede_presupuesto and not context['tiene_cdo'] and presupuesto_activo is not None
+        )
         context['puede_gestionar_cdp'] = usuario_puede_presupuesto
 
         return context
@@ -611,6 +651,11 @@ class SolicitudCompraDetailView(DetailView):
 @grupo_requerido('Administrador', 'scompras')
 def crear_cdp_solicitud(request, solicitud_id):
     solicitud = get_object_or_404(SolicitudCompra, pk=solicitud_id)
+
+    presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+    if not presupuesto_activo:
+        messages.error(request, 'No hay presupuesto activo. Active un presupuesto anual antes de crear un CDP.')
+        return redirect('scompras:detalle_solicitud', pk=solicitud.id)
 
     if solicitud.cdps.filter(cdo__isnull=False).exists():
         messages.error(request, 'La solicitud ya cuenta con un CDO generado, no puede crear nuevos CDP.')
@@ -651,6 +696,14 @@ def ejecutar_cdp(request, cdp_id):
         CDP.objects.select_related('solicitud', 'renglon', 'renglon__presupuesto_anual'), pk=cdp_id
     )
 
+    presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+    if not presupuesto_activo:
+        messages.error(request, 'No hay presupuesto activo. Active un presupuesto anual antes de ejecutar un CDP.')
+        return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
+    if cdp.renglon.presupuesto_anual_id != presupuesto_activo.id:
+        messages.error(request, 'Solo se pueden ejecutar CDP del presupuesto activo.')
+        return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
+
     if cdp.estado != CDP.Estado.RESERVADO or hasattr(cdp, 'cdo'):
         messages.error(request, 'El CDP no está en estado Reservado o ya fue ejecutado.')
         return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
@@ -684,6 +737,14 @@ def liberar_cdp(request, cdp_id):
     cdp = get_object_or_404(
         CDP.objects.select_related('solicitud', 'renglon', 'renglon__presupuesto_anual'), pk=cdp_id
     )
+
+    presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+    if not presupuesto_activo:
+        messages.error(request, 'No hay presupuesto activo. Active un presupuesto anual antes de liberar un CDP.')
+        return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
+    if cdp.renglon.presupuesto_anual_id != presupuesto_activo.id:
+        messages.error(request, 'Solo se pueden liberar CDP del presupuesto activo.')
+        return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
 
     if cdp.estado != CDP.Estado.RESERVADO:
         messages.error(request, 'Solo los CDP en estado Reservado pueden liberarse.')

@@ -233,17 +233,37 @@ class Subproducto(models.Model):
 class PresupuestoAnual(models.Model):
     anio = models.PositiveIntegerField(unique=True)
     descripcion = models.CharField(max_length=255, blank=True, null=True)
+    activo = models.BooleanField(default=False)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-anio']
 
     def __str__(self):
-        return f"Presupuesto {self.anio}"
+        return f"Presupuesto {self.anio}" + (" (Activo)" if self.activo else "")
 
     def clean(self):
         if self.anio < 2000:
             raise ValidationError('El año de presupuesto debe ser igual o posterior a 2000.')
+
+    @classmethod
+    def presupuesto_activo(cls):
+        return cls.objects.filter(activo=True).first()
+
+    def activar(self):
+        """Activa este presupuesto y desactiva los demás de forma atómica."""
+        with transaction.atomic():
+            PresupuestoAnual.objects.exclude(pk=self.pk).filter(activo=True).update(activo=False)
+            if not self.activo:
+                self.activo = True
+                self.save(update_fields=['activo'])
+
+    def save(self, *args, **kwargs):
+        activar = self.activo
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            if activar:
+                PresupuestoAnual.objects.exclude(pk=self.pk).filter(activo=True).update(activo=False)
 
 
 class PresupuestoRenglon(models.Model):
@@ -277,25 +297,21 @@ class PresupuestoRenglon(models.Model):
         es_nuevo = self._state.adding
         super().save(*args, **kwargs)
         if es_nuevo:
-            KardexPresupuesto.objects.create(
-                renglon=self,
-                fecha=timezone.now(),
-                tipo_movimiento=KardexPresupuesto.TipoMovimiento.CARGA_INICIAL,
-                monto=self.monto_inicial,
-                saldo_anterior=Decimal('0.00'),
-                saldo_nuevo=self.monto_disponible,
-                referencia='Carga inicial de presupuesto'
+            self._registrar_kardex(
+                KardexPresupuesto.TipoMovimiento.CARGA_INICIAL,
+                self.monto_inicial,
+                Decimal('0.00'),
+                'Carga inicial de presupuesto'
             )
 
     def _registrar_kardex(self, tipo, monto, saldo_anterior, referencia):
         KardexPresupuesto.objects.create(
-            renglon=self,
-            fecha=timezone.now(),
-            tipo_movimiento=tipo,
+            presupuesto_renglon=self,
+            tipo=tipo,
             monto=monto,
             saldo_anterior=saldo_anterior,
             saldo_nuevo=self.monto_disponible,
-            referencia=referencia
+            referencia=referencia,
         )
 
     def reservar_monto(self, monto, referencia):
@@ -310,7 +326,7 @@ class PresupuestoRenglon(models.Model):
             renglon.save(update_fields=['monto_reservado', 'fecha_actualizacion'])
             renglon.refresh_from_db()
             renglon._registrar_kardex(
-                KardexPresupuesto.TipoMovimiento.CDP_RESERVA,
+                KardexPresupuesto.TipoMovimiento.RESERVA_CDP,
                 monto,
                 saldo_anterior,
                 referencia
@@ -329,7 +345,7 @@ class PresupuestoRenglon(models.Model):
             renglon.save(update_fields=['monto_reservado', 'fecha_actualizacion'])
             renglon.refresh_from_db()
             renglon._registrar_kardex(
-                KardexPresupuesto.TipoMovimiento.CDP_LIBERACION,
+                KardexPresupuesto.TipoMovimiento.LIBERACION_CDP,
                 monto,
                 saldo_anterior,
                 referencia
@@ -349,7 +365,7 @@ class PresupuestoRenglon(models.Model):
             renglon.save(update_fields=['monto_reservado', 'monto_ejecutado', 'fecha_actualizacion'])
             renglon.refresh_from_db()
             renglon._registrar_kardex(
-                KardexPresupuesto.TipoMovimiento.EJECUCION,
+                KardexPresupuesto.TipoMovimiento.EJECUCION_CDP,
                 monto,
                 saldo_anterior,
                 referencia
@@ -362,23 +378,30 @@ class KardexPresupuesto(models.Model):
         CARGA_INICIAL = 'CARGA_INICIAL', 'Carga inicial'
         TRANSFERENCIA_SALIDA = 'TRANSFERENCIA_SALIDA', 'Transferencia salida'
         TRANSFERENCIA_ENTRADA = 'TRANSFERENCIA_ENTRADA', 'Transferencia entrada'
-        CDP_RESERVA = 'CDP_RESERVA', 'Creación de CDP'
-        CDP_LIBERACION = 'CDP_LIBERACION', 'Liberación de CDP'
-        EJECUCION = 'EJECUCION', 'Ejecución presupuestaria'
+        RESERVA_CDP = 'RESERVA_CDP', 'Creación de CDP'
+        LIBERACION_CDP = 'LIBERACION_CDP', 'Liberación de CDP'
+        EJECUCION_CDP = 'EJECUCION_CDP', 'Ejecución presupuestaria'
 
-    renglon = models.ForeignKey(PresupuestoRenglon, on_delete=models.CASCADE, related_name='kardex')
-    fecha = models.DateTimeField(default=timezone.now)
-    tipo_movimiento = models.CharField(max_length=50, choices=TipoMovimiento.choices)
+    presupuesto_renglon = models.ForeignKey(PresupuestoRenglon, on_delete=models.CASCADE, related_name='kardex')
+    fecha = models.DateTimeField(auto_now_add=True)
+    tipo = models.CharField(max_length=50, choices=TipoMovimiento.choices)
     monto = models.DecimalField(max_digits=14, decimal_places=2)
     saldo_anterior = models.DecimalField(max_digits=14, decimal_places=2)
     saldo_nuevo = models.DecimalField(max_digits=14, decimal_places=2)
-    referencia = models.CharField(max_length=255)
+    referencia = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         ordering = ['-fecha', '-id']
+        verbose_name = 'Kardex presupuestario'
+        verbose_name_plural = 'Kardex presupuestario'
 
     def __str__(self):
-        return f"{self.get_tipo_movimiento_display()} - {self.fecha:%Y-%m-%d %H:%M}"
+        return f"{self.get_tipo_display()} - {self.fecha:%Y-%m-%d %H:%M}"
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding:
+            raise ValidationError('Los registros de kardex son de solo lectura.')
+        return super().save(*args, **kwargs)
 
 
 class CDP(models.Model):
@@ -407,6 +430,11 @@ class CDP(models.Model):
             disponible = self.renglon.monto_disponible
             if self._state.adding and self.monto > disponible:
                 raise ValidationError('El monto del CDP excede el presupuesto disponible del renglón.')
+            presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+            if not presupuesto_activo:
+                raise ValidationError('No hay presupuesto activo para registrar el CDP.')
+            if self.renglon.presupuesto_anual_id != presupuesto_activo.id:
+                raise ValidationError('Solo se pueden registrar CDP sobre el presupuesto activo.')
         if self.estado == CDP.Estado.EJECUTADO and self._state.adding:
             raise ValidationError('Un CDP nuevo solo puede crearse en estado Reservado.')
 
@@ -439,6 +467,8 @@ class CDP(models.Model):
     def liberar(self):
         if self.estado != CDP.Estado.RESERVADO:
             raise ValidationError('Solo se pueden liberar CDP en estado Reservado.')
+        if not self.renglon.presupuesto_anual.activo:
+            raise ValidationError('Solo se pueden liberar CDP pertenecientes al presupuesto activo.')
         with transaction.atomic():
             self.renglon.liberar_reserva(self.monto, referencia=f'CDP #{self.pk} - Liberación')
             self._actualizar_estado(CDP.Estado.LIBERADO)
@@ -446,6 +476,8 @@ class CDP(models.Model):
     def ejecutar(self):
         if self.estado != CDP.Estado.RESERVADO:
             raise ValidationError('Solo se pueden ejecutar CDP en estado Reservado.')
+        if not self.renglon.presupuesto_anual.activo:
+            raise ValidationError('Solo se pueden ejecutar CDP pertenecientes al presupuesto activo.')
         with transaction.atomic():
             self.renglon.ejecutar_monto(self.monto, referencia=f'CDP #{self.pk} - Ejecución')
             cdo = CDO.objects.create(cdp=self, monto=self.monto)
