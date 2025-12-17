@@ -1,0 +1,222 @@
+from asyncio import open_connection
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.contrib.auth.models import User
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
+from django.urls import reverse
+from django.db.models import Sum
+from django.db.models.signals import post_save
+from django.utils import timezone
+
+class Institucion(models.Model):
+    nombre = models.CharField(max_length=255)
+    direccion = models.CharField(max_length=255)
+    telefono = models.CharField(max_length=20)
+    pagina_web = models.URLField(blank=True, null=True)
+    logo = models.ImageField(upload_to='logos/', blank=True, null=True)
+    logo2 = models.ImageField(upload_to='logos/', blank=True, null=True)
+
+    def __str__(self):
+        return self.nombre
+
+
+# Modelo de Departamento
+class Departamento(models.Model):
+    id_departamento = models.CharField(max_length=50, unique=True)  # ID personalizado del departamento
+    nombre = models.CharField(max_length=255)
+    abreviatura = models.CharField(max_length=10, default='Dept')
+    descripcion = models.TextField(null=True, blank=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)  # Fecha de creación automática
+    fecha_actualizacion = models.DateTimeField(auto_now=True)  # Fecha de actualización automática
+    activo = models.BooleanField(default=True) # Campo para determinar si el departamento está activo
+    
+    def __str__(self):
+        return self.nombre
+   
+    
+class Seccion(models.Model):
+    nombre = models.CharField(max_length=255)
+    abreviatura = models.CharField(max_length=10, default='Secc')
+    descripcion = models.TextField(blank=True, null=True)
+    departamento = models.ForeignKey(Departamento, on_delete=models.CASCADE, related_name='secciones')
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+
+    def __str__(self):
+        return f'{self.nombre} ({self.departamento.nombre})'
+
+
+
+class SolicitudCompra(models.Model):
+    ESTADOS = [
+        ('Creada', 'Creada'),
+        ('Rechazada', 'Rechazada'),
+        ('Finalizada', 'Finalizada'),
+    ]
+
+    PRIORIDADES = [
+        ('Baja', 'Baja'),
+        ('Media', 'Media'),
+        ('Alta', 'Alta'),
+    ]
+
+    seccion = models.ForeignKey('Seccion', on_delete=models.CASCADE, related_name='solicitudes')
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    descripcion = models.TextField()
+    fecha_solicitud = models.DateTimeField(default=timezone.now)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='Creada')
+    prioridad = models.CharField(max_length=20, choices=PRIORIDADES, default='Media')
+    producto = models.ForeignKey('Producto', on_delete=models.CASCADE, null=True, blank=True)
+    subproducto = models.ForeignKey('Subproducto', on_delete=models.CASCADE, null=True, blank=True)
+    insumos = models.ManyToManyField('Insumo', related_name='solicitudes', blank=True)
+    codigo_correlativo = models.CharField(max_length=50, blank=True, null=True, unique=True)
+
+    
+    def __str__(self):
+        return f'Solicitud #{self.id} - {self.estado}'
+
+
+
+
+class UsuarioDepartamento(models.Model):
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    departamento = models.ForeignKey(Departamento, on_delete=models.CASCADE)
+    seccion = models.ForeignKey(Seccion, on_delete=models.CASCADE, null=True, blank=True)  # nuevo campo
+
+    class Meta:
+        unique_together = ('usuario', 'departamento', 'seccion')  # ahora la combinación incluye seccion
+
+    def __str__(self):
+        return f'{self.usuario.username} - {self.departamento.nombre} - {self.seccion.nombre if self.seccion else "Sin Sección"}'
+
+ 
+
+class FraseMotivacional(models.Model):
+    frase = models.CharField(max_length=500)
+    personaje = models.CharField(max_length=100)
+
+    def __str__(self):
+        return f'{self.personaje}: {self.frase}'
+    
+
+
+def user_directory_path(instance, filename):
+    # El archivo se subirá a MEDIA_ROOT/perfil_usuario/<username>/<filename>
+    return f'perfil_usuario/{instance.user.username}/{filename}'
+
+class Perfil(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    foto = models.ImageField(upload_to=user_directory_path, null=True, blank=True)
+    cargo = models.CharField(max_length=100, blank=True, null=True) 
+
+    def __str__(self):
+        return f'Perfil de {self.user.username}'
+
+# Señal: Crear perfil automáticamente cuando se crea un usuario
+@receiver(post_save, sender=User)
+def crear_perfil_usuario(sender, instance, created, **kwargs):
+    if created and not hasattr(instance, 'perfil'):
+        Perfil.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def guardar_perfil_usuario(sender, instance, **kwargs):
+    from django.db.utils import ProgrammingError, OperationalError
+    from scompras_app.models import Perfil
+
+    try:
+        if hasattr(instance, 'perfil'):
+            instance.perfil.save()
+        else:
+            Perfil.objects.get_or_create(user=instance)
+    except (ProgrammingError, OperationalError):
+        # Si la tabla aún no existe (por ejemplo al migrar o primera conexión)
+        pass
+
+        
+
+# Modelo de Insumo (para la importación de datos desde Excel)
+class Insumo(models.Model):
+    renglon = models.IntegerField()
+    codigo_insumo = models.CharField(max_length=100)
+    nombre = models.CharField(max_length=500)
+    caracteristicas = models.TextField(blank=True, null=True)
+    nombre_presentacion = models.CharField(max_length=500)
+    cantidad_unidad_presentacion = models.CharField(max_length=100)
+    codigo_presentacion = models.CharField(max_length=100)
+    fecha_actualizacion = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"{self.codigo_insumo} - {self.nombre}"
+
+
+# Modelo para la fecha de insumo (para la importación de datos desde Excel)
+class FechaInsumo(models.Model):
+    fechainsumo = models.DateField()  
+
+    def __str__(self):
+        return f"{self.fechainsumo}"        
+    
+class InsumoSolicitud(models.Model):
+    solicitud = models.ForeignKey(SolicitudCompra, on_delete=models.CASCADE, related_name='insumos_solicitud')
+    insumo = models.ForeignKey(Insumo, on_delete=models.CASCADE)
+    cantidad = models.PositiveIntegerField(default=1)  # o la cantidad que necesites
+    caracteristica_especial = models.TextField(blank=True, null=True)
+    renglon = models.CharField(max_length=100, blank=True, null=True)
+
+    class Meta:
+        unique_together = ('solicitud', 'insumo')  # para evitar duplicados
+
+# === NUEVO MODELO DE SERVICIOS ===
+class Servicio(models.Model):
+    concepto = models.CharField(max_length=500)
+    renglon = models.CharField(max_length=100)
+    caracteristica_especial = models.TextField(blank=True, null=True)
+    unidad_medida = models.CharField(max_length=100)
+    fecha_actualizacion = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"{self.concepto} ({self.renglon}) - {self.unidad_medida}"
+
+
+# === RELACIÓN ENTRE SOLICITUD Y SERVICIO ===
+class ServicioSolicitud(models.Model):
+    solicitud = models.ForeignKey(SolicitudCompra, on_delete=models.CASCADE, related_name='servicios_solicitud')
+    servicio = models.ForeignKey(Servicio, on_delete=models.CASCADE)
+    cantidad = models.PositiveIntegerField(default=1)
+    observacion = models.TextField(blank=True, null=True)
+
+
+    def __str__(self):
+        return f"Servicio {self.servicio.concepto} en {self.solicitud}"
+
+    
+
+class Producto(models.Model):
+    nombre = models.CharField(max_length=255)
+    descripcion = models.TextField(blank=True, null=True)
+    codigo = models.CharField(max_length=100, unique=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    activo = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.nombre} ({self.codigo})"
+
+
+class Subproducto(models.Model):
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='subproductos')
+    nombre = models.CharField(max_length=255)
+    descripcion = models.TextField(blank=True, null=True)
+    codigo = models.CharField(max_length=100)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('producto', 'codigo')  # Un subproducto no puede tener el mismo código dentro del mismo producto
+
+    def __str__(self):
+        return f"{self.nombre} ({self.codigo}) - Subproducto de {self.producto.nombre}"
+    
