@@ -152,6 +152,7 @@
                           <th>Renglón</th>
                           <th>Monto</th>
                           <th>CDO</th>
+                          <th>Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -162,6 +163,14 @@
                             <td>{{ cdp.renglon.codigo_renglon }} ({{ cdp.renglon.presupuesto_anual.anio }})</td>
                             <td>{{ cdp.monto }}</td>
                             <td>{% if cdp.cdo %}Emitido{% else %}-{% endif %}</td>
+                            <td>
+                              {% if puede_gestionar_cdp and cdp.estado == 'RESERVADO' %}
+                                <a class="btn btn-sm btn-success" href="{% url 'scompras:ejecutar_cdp' cdp.id %}">Ejecutar CDO</a>
+                                <a class="btn btn-sm btn-warning" href="{% url 'scompras:liberar_cdp' cdp.id %}">Liberar CDP</a>
+                              {% else %}
+                                <span class="text-muted">-</span>
+                              {% endif %}
+                            </td>
                           </tr>
                         {% endfor %}
                       </tbody>

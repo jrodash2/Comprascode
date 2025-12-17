@@ -28,6 +28,9 @@ from .form import (
     UsuarioDepartamentoForm,
     InstitucionForm,
     CDPForm,
+    PresupuestoRenglonForm,
+    EjecutarCDPForm,
+    LiberarCDPForm,
 )
 from .models import (
     FechaInsumo,
@@ -46,6 +49,7 @@ from .models import (
     CDP,
     CDO,
     PresupuestoRenglon,
+    PresupuestoAnual,
 )
 from django.views.generic import CreateView
 from django.views.generic import ListView
@@ -484,6 +488,62 @@ def user_edit(request, user_id):
 from django.utils.timezone import localtime
 from django.template.defaultfilters import date as django_date
 
+
+@login_required
+@grupo_requerido('Administrador', 'scompras')
+def lista_presupuestos(request):
+    presupuestos = PresupuestoAnual.objects.prefetch_related('renglones').all()
+    return render(
+        request,
+        'scompras/presupuestos_list.html',
+        {
+            'presupuestos': presupuestos,
+        },
+    )
+
+
+@login_required
+@grupo_requerido('Administrador', 'scompras')
+def detalle_presupuesto(request, presupuesto_id):
+    presupuesto = get_object_or_404(PresupuestoAnual.objects.prefetch_related('renglones'), pk=presupuesto_id)
+    renglones = presupuesto.renglones.all()
+
+    if request.method == 'POST':
+        form = PresupuestoRenglonForm(request.POST)
+        if form.is_valid():
+            renglon = form.save(commit=False)
+            renglon.presupuesto_anual = presupuesto
+            try:
+                renglon.save()
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, 'Renglón creado correctamente.')
+                return redirect('scompras:detalle_presupuesto', presupuesto_id=presupuesto.id)
+    else:
+        form = PresupuestoRenglonForm()
+
+    resumen = renglones.aggregate(
+        total_inicial=Coalesce(Sum('monto_inicial'), Value(0, output_field=models.DecimalField(max_digits=14, decimal_places=2))),
+        total_modificado=Coalesce(Sum('monto_modificado'), Value(0, output_field=models.DecimalField(max_digits=14, decimal_places=2))),
+        total_reservado=Coalesce(Sum('monto_reservado'), Value(0, output_field=models.DecimalField(max_digits=14, decimal_places=2))),
+        total_ejecutado=Coalesce(Sum('monto_ejecutado'), Value(0, output_field=models.DecimalField(max_digits=14, decimal_places=2))),
+    )
+    resumen['total_disponible'] = (resumen['total_inicial'] + resumen['total_modificado']) - (
+        resumen['total_reservado'] + resumen['total_ejecutado']
+    )
+
+    return render(
+        request,
+        'scompras/presupuesto_detalle.html',
+        {
+            'presupuesto': presupuesto,
+            'renglones': renglones,
+            'form': form,
+            'resumen': resumen,
+        },
+    )
+
 class SolicitudCompraDetailView(DetailView):
     model = SolicitudCompra
     template_name = 'scompras/detalle_solicitud.html'
@@ -509,10 +569,14 @@ class SolicitudCompraDetailView(DetailView):
         context['subproductos'] = Subproducto.objects.filter(activo=True)
         context['cdps'] = solicitud.cdps.select_related('renglon', 'renglon__presupuesto_anual').all()
         context['tiene_cdo'] = solicitud.cdps.filter(cdo__isnull=False).exists()
-        context['puede_crear_cdp'] = (
+
+        usuario_puede_presupuesto = (
             self.request.user.is_superuser
             or self.request.user.groups.filter(name__in=['Administrador', 'scompras']).exists()
-        ) and not context['tiene_cdo']
+        )
+
+        context['puede_crear_cdp'] = usuario_puede_presupuesto and not context['tiene_cdo']
+        context['puede_gestionar_cdp'] = usuario_puede_presupuesto
 
         return context
 
@@ -549,7 +613,75 @@ def crear_cdp_solicitud(request, solicitud_id):
         {
             'form': form,
             'solicitud': solicitud,
-            'renglones_disponibles': renglones_disponibles,
+        'renglones_disponibles': renglones_disponibles,
+        },
+    )
+
+
+@login_required
+@grupo_requerido('Administrador', 'scompras')
+def ejecutar_cdp(request, cdp_id):
+    cdp = get_object_or_404(
+        CDP.objects.select_related('solicitud', 'renglon', 'renglon__presupuesto_anual'), pk=cdp_id
+    )
+
+    if cdp.estado != CDP.Estado.RESERVADO or hasattr(cdp, 'cdo'):
+        messages.error(request, 'El CDP no está en estado Reservado o ya fue ejecutado.')
+        return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
+
+    if request.method == 'POST':
+        form = EjecutarCDPForm(cdp, request.POST)
+        if form.is_valid():
+            try:
+                form.save()
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, 'CDP ejecutado y CDO generado correctamente.')
+                return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
+    else:
+        form = EjecutarCDPForm(cdp)
+
+    return render(
+        request,
+        'scompras/cdo_form.html',
+        {
+            'form': form,
+            'cdp': cdp,
+        },
+    )
+
+
+@login_required
+@grupo_requerido('Administrador', 'scompras')
+def liberar_cdp(request, cdp_id):
+    cdp = get_object_or_404(
+        CDP.objects.select_related('solicitud', 'renglon', 'renglon__presupuesto_anual'), pk=cdp_id
+    )
+
+    if cdp.estado != CDP.Estado.RESERVADO:
+        messages.error(request, 'Solo los CDP en estado Reservado pueden liberarse.')
+        return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
+
+    if request.method == 'POST':
+        form = LiberarCDPForm(cdp, request.POST)
+        if form.is_valid():
+            try:
+                form.save()
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, 'Reserva liberada y presupuesto devuelto correctamente.')
+                return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
+    else:
+        form = LiberarCDPForm(cdp)
+
+    return render(
+        request,
+        'scompras/cdp_liberar.html',
+        {
+            'form': form,
+            'cdp': cdp,
         },
     )
 

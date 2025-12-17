@@ -483,3 +483,75 @@ class CDPForm(forms.ModelForm):
                 raise ValidationError('El monto del CDP excede la disponibilidad del renglón.')
 
         return cleaned_data
+
+
+class PresupuestoRenglonForm(forms.ModelForm):
+    class Meta:
+        model = PresupuestoRenglon
+        fields = ['codigo_renglon', 'descripcion', 'monto_inicial']
+        widgets = {
+            'codigo_renglon': forms.TextInput(attrs={'class': 'form-control'}),
+            'descripcion': forms.TextInput(attrs={'class': 'form-control'}),
+            'monto_inicial': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+        }
+
+    def clean_monto_inicial(self):
+        monto = self.cleaned_data.get('monto_inicial')
+        if monto is None or monto <= 0:
+            raise ValidationError('El monto inicial debe ser mayor que cero.')
+        return monto
+
+
+class EjecutarCDPForm(forms.Form):
+    confirmar = forms.BooleanField(
+        required=True,
+        label='Confirmo la ejecución del CDP',
+        help_text='Esta acción ejecuta definitivamente el presupuesto reservado.',
+    )
+    monto = forms.DecimalField(disabled=True, required=False, label='Monto a ejecutar')
+
+    def __init__(self, cdp, *args, **kwargs):
+        self.cdp = cdp
+        initial = kwargs.pop('initial', {})
+        initial.setdefault('monto', cdp.monto)
+        kwargs['initial'] = initial
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            css_class = 'form-control' if not isinstance(field.widget, forms.CheckboxInput) else 'form-check-input'
+            field.widget.attrs['class'] = field.widget.attrs.get('class', '') + f' {css_class}'
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.cdp.estado != CDP.Estado.RESERVADO:
+            raise ValidationError('Solo se pueden ejecutar CDP en estado Reservado.')
+        if hasattr(self.cdp, 'cdo'):
+            raise ValidationError('El CDP ya tiene un CDO generado.')
+        return cleaned
+
+    def save(self):
+        return self.cdp.ejecutar()
+
+
+class LiberarCDPForm(forms.Form):
+    confirmar = forms.BooleanField(
+        required=True,
+        label='Confirmo la liberación del CDP',
+        help_text='La reserva se devolverá al presupuesto disponible.',
+    )
+
+    def __init__(self, cdp, *args, **kwargs):
+        self.cdp = cdp
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            css_class = 'form-control' if not isinstance(field.widget, forms.CheckboxInput) else 'form-check-input'
+            field.widget.attrs['class'] = field.widget.attrs.get('class', '') + f' {css_class}'
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.cdp.estado != CDP.Estado.RESERVADO:
+            raise ValidationError('Solo se pueden liberar CDP en estado Reservado.')
+        return cleaned
+
+    def save(self):
+        self.cdp.liberar()
+        return self.cdp
