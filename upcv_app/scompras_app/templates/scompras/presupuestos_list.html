@@ -1,0 +1,55 @@
+{% extends 'scompras/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="page-body">
+  <div class="container-fluid">
+    <div class="page-title d-flex justify-content-between align-items-center">
+      <div>
+        <h4>Presupuestos anuales</h4>
+        <p class="text-muted mb-0">Resumen de asignaciones por año fiscal.</p>
+      </div>
+      <div class="d-flex gap-2">
+        <a class="btn btn-primary" href="{% url 'scompras:presupuesto_anual_crear' %}">Crear presupuesto</a>
+        <a class="btn btn-light" href="{% url 'scompras:home' %}">Volver al inicio</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Años disponibles</h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Año</th>
+                <th>Descripción</th>
+                <th>Renglones</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for presupuesto in presupuestos %}
+                <tr>
+                  <td>{{ presupuesto.anio }}</td>
+                  <td>{{ presupuesto.descripcion|default:'-' }}</td>
+                  <td>{{ presupuesto.total_renglones }}</td>
+                  <td class="text-end">
+                    <a class="btn btn-sm btn-primary" href="{% url 'scompras:presupuesto_anual_detalle' presupuesto.id %}">Ver detalle</a>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="text-center text-muted">No hay presupuestos registrados.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
