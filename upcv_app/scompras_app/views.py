@@ -29,6 +29,7 @@ from .form import (
     InstitucionForm,
     CDPForm,
     PresupuestoRenglonForm,
+    PresupuestoAnualForm,
     EjecutarCDPForm,
     LiberarCDPForm,
 )
@@ -491,8 +492,12 @@ from django.template.defaultfilters import date as django_date
 
 @login_required
 @grupo_requerido('Administrador', 'scompras')
-def lista_presupuestos(request):
-    presupuestos = PresupuestoAnual.objects.prefetch_related('renglones').all()
+def presupuesto_anual_list(request):
+    presupuestos = (
+        PresupuestoAnual.objects.prefetch_related('renglones')
+        .annotate(total_renglones=Count('renglones'))
+        .order_by('-anio')
+    )
     return render(
         request,
         'scompras/presupuestos_list.html',
@@ -504,7 +509,28 @@ def lista_presupuestos(request):
 
 @login_required
 @grupo_requerido('Administrador', 'scompras')
-def detalle_presupuesto(request, presupuesto_id):
+def presupuesto_anual_crear(request):
+    if request.method == 'POST':
+        form = PresupuestoAnualForm(request.POST)
+        if form.is_valid():
+            presupuesto = form.save()
+            messages.success(request, 'Presupuesto anual creado correctamente.')
+            return redirect('scompras:presupuesto_anual_detalle', presupuesto_id=presupuesto.id)
+    else:
+        form = PresupuestoAnualForm()
+
+    return render(
+        request,
+        'scompras/presupuesto_form.html',
+        {
+            'form': form,
+        },
+    )
+
+
+@login_required
+@grupo_requerido('Administrador', 'scompras')
+def presupuesto_anual_detalle(request, presupuesto_id):
     presupuesto = get_object_or_404(PresupuestoAnual.objects.prefetch_related('renglones'), pk=presupuesto_id)
     renglones = presupuesto.renglones.all()
 
@@ -519,7 +545,7 @@ def detalle_presupuesto(request, presupuesto_id):
                 form.add_error(None, exc)
             else:
                 messages.success(request, 'Renglón creado correctamente.')
-                return redirect('scompras:detalle_presupuesto', presupuesto_id=presupuesto.id)
+                return redirect('scompras:presupuesto_anual_detalle', presupuesto_id=presupuesto.id)
     else:
         form = PresupuestoRenglonForm()
 

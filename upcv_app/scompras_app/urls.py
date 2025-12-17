@@ -35,8 +35,9 @@ urlpatterns = [
     path('usuario/eliminar/<int:user_id>/', views.user_delete, name='user_delete'),
 
     # Presupuesto
-    path('presupuestos/', views.lista_presupuestos, name='lista_presupuestos'),
-    path('presupuestos/<int:presupuesto_id>/', views.detalle_presupuesto, name='detalle_presupuesto'),
+    path('presupuestos/', views.presupuesto_anual_list, name='presupuesto_anual_list'),
+    path('presupuestos/crear/', views.presupuesto_anual_crear, name='presupuesto_anual_crear'),
+    path('presupuestos/<int:presupuesto_id>/', views.presupuesto_anual_detalle, name='presupuesto_anual_detalle'),
 
     # Departamentos
     path('departamento/', views.crear_departamento, name='crear_departamento'),

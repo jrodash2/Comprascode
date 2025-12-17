@@ -9,7 +9,10 @@
         <h4>Presupuestos anuales</h4>
         <p class="text-muted mb-0">Resumen de asignaciones por año fiscal.</p>
       </div>
-      <a class="btn btn-light" href="{% url 'scompras:home' %}">Volver al inicio</a>
+      <div class="d-flex gap-2">
+        <a class="btn btn-primary" href="{% url 'scompras:presupuesto_anual_crear' %}">Crear presupuesto</a>
+        <a class="btn btn-light" href="{% url 'scompras:home' %}">Volver al inicio</a>
+      </div>
     </div>
 
     <div class="card">
@@ -32,9 +35,9 @@
                 <tr>
                   <td>{{ presupuesto.anio }}</td>
                   <td>{{ presupuesto.descripcion|default:'-' }}</td>
-                  <td>{{ presupuesto.renglones.count }}</td>
+                  <td>{{ presupuesto.total_renglones }}</td>
                   <td class="text-end">
-                    <a class="btn btn-sm btn-primary" href="{% url 'scompras:detalle_presupuesto' presupuesto.id %}">Ver detalle</a>
+                    <a class="btn btn-sm btn-primary" href="{% url 'scompras:presupuesto_anual_detalle' presupuesto.id %}">Ver detalle</a>
                   </td>
                 </tr>
               {% empty %}

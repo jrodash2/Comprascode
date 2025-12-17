@@ -16,6 +16,7 @@ from .models import (
     Institucion,
     CDP,
     PresupuestoRenglon,
+    PresupuestoAnual,
 )
 
 from django.db.models import Sum, F, Value
@@ -483,6 +484,24 @@ class CDPForm(forms.ModelForm):
                 raise ValidationError('El monto del CDP excede la disponibilidad del renglón.')
 
         return cleaned_data
+
+
+class PresupuestoAnualForm(forms.ModelForm):
+    class Meta:
+        model = PresupuestoAnual
+        fields = ['anio', 'descripcion']
+        widgets = {
+            'anio': forms.NumberInput(attrs={'class': 'form-control', 'min': '2000'}),
+            'descripcion': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+    def clean_anio(self):
+        anio = self.cleaned_data.get('anio')
+        if anio is None or anio < 2000:
+            raise ValidationError('El año debe ser 2000 o superior.')
+        if PresupuestoAnual.objects.exclude(pk=self.instance.pk).filter(anio=anio).exists():
+            raise ValidationError('Ya existe un presupuesto para este año.')
+        return anio
 
 
 class PresupuestoRenglonForm(forms.ModelForm):
