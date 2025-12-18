@@ -477,6 +477,9 @@
 <!-- ApexCharts (para las gráficas) -->
 <script src="{% static 'assets/js/chart/apex-chart/apex-chart.js' %}"></script>
 
+{# Bloque opcional para inyectar JS adicional (p. ej. gráficas Chart.js en dashboards) #}
+{% block extra_js %}{% endblock %}
+
 <footer class="footer"> <div class="container-fluid"> 
   <div class="row"> <div class="col-md-12 footer-copyright text-center"> 
     <p class="mb-0">Copyright <span id="currentYear"></span> © Informatica UPCV</p> </div> </div> </div> 

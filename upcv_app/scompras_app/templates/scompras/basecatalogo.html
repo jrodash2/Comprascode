@@ -436,6 +436,9 @@
 <!-- ApexCharts (para las gráficas) -->
 <script src="{% static 'assets/js/chart/apex-chart/apex-chart.js' %}"></script>
 
+{# Permite a vistas específicas inyectar JS adicional (p. ej. dashboards con Chart.js) #}
+{% block extra_js %}{% endblock %}
+
 <!-- Footer SIEMPRE va fuera de .page-body -->
   <footer class="footer">
     <div class="container-fluid">
