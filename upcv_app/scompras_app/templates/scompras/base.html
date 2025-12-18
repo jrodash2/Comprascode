@@ -292,8 +292,8 @@
   {% endif %}
 
   {# Mostrar "Configuración" solo a Administradores #}
-  {% if es_administrador %}
-    <li class="sidebar-list" ><i class="fa fa-thumb-tack"> </i><a class="sidebar-link " href="{% url 'scompras:dahsboard' %}">
+  {% if es_administrador or user.is_superuser %}
+    <li class="sidebar-list" ><i class="fa fa-thumb-tack"> </i><a class="sidebar-link " href="{% url 'scompras:dashboard_admin' %}">
                     <svg >
                       <use href="../assets/svg/icon-sprite.svg#stroke-home"></use>
                     </svg>
@@ -330,6 +330,18 @@
 
 
     </li>
+
+    <li class="sidebar-list"><i class="fa fa-thumb-tack"></i>
+      <a class="sidebar-link " href="{% url 'scompras:presupuesto_anual_list' %}">
+        <svg>
+          <use href="{% url 'scompras:presupuesto_anual_list' %}"></use>
+        </svg>
+        <svg class="fill-icon">
+          <use href="{% url 'scompras:presupuesto_anual_list' %}"></use>
+        </svg>
+        <span>Presupuestos</span>
+      </a>
+    </li>
   
 
 
@@ -363,7 +375,7 @@
   
   {# Mostrar "Configuración" solo a scompras #}
   {% if es_scompras %}
-    <li class="sidebar-list" ><i class="fa fa-thumb-tack"> </i><a class="sidebar-link " href="{% url 'scompras:dashboard_usuario' %}">
+    <li class="sidebar-list" ><i class="fa fa-thumb-tack"> </i><a class="sidebar-link " href="{% url 'scompras:dashboard_scompras' %}">
                     <svg >
                       <use href="../assets/svg/icon-sprite.svg#stroke-home"></use>
                     </svg>
@@ -385,7 +397,7 @@
 
 
     </li>
-      <li class="sidebar-list"><i class="fa fa-thumb-tack"></i>
+    <li class="sidebar-list"><i class="fa fa-thumb-tack"></i>
       <a class="sidebar-link " href="{% url 'scompras:detalle_seccion_usuario' %}">
         <svg >
           <use href="{% url 'scompras:detalle_seccion_usuario' %}"></use>
@@ -398,7 +410,7 @@
 
 
     </li>
-  
+
   {% endif %}
 
 {% endif %}
