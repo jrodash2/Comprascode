@@ -505,6 +505,10 @@ def presupuesto_anual_list(request):
         'scompras/presupuestos_list.html',
         {
             'presupuestos': presupuestos,
+            # Simplify template conditions by passing a boolean flag instead of calling
+            # queryset methods from the template engine.
+            'es_admin': request.user.is_superuser
+            or request.user.groups.filter(name='Administrador').exists(),
         },
     )
 

@@ -10,7 +10,7 @@
         <p class="text-muted mb-0">Resumen de asignaciones por año fiscal.</p>
       </div>
       <div class="d-flex gap-2">
-        {% if request.user.is_superuser or request.user.groups.filter(name='Administrador').exists %}
+        {% if es_admin %}
           <a class="btn btn-outline-secondary" href="{% url 'scompras:transferencias_list' %}">Transferencias</a>
         {% endif %}
         <a class="btn btn-primary" href="{% url 'scompras:presupuesto_anual_crear' %}">Crear presupuesto</a>
