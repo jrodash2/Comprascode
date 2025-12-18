@@ -330,6 +330,18 @@
 
 
     </li>
+
+    <li class="sidebar-list"><i class="fa fa-thumb-tack"></i>
+      <a class="sidebar-link " href="{% url 'scompras:presupuesto_anual_list' %}">
+        <svg>
+          <use href="{% url 'scompras:presupuesto_anual_list' %}"></use>
+        </svg>
+        <svg class="fill-icon">
+          <use href="{% url 'scompras:presupuesto_anual_list' %}"></use>
+        </svg>
+        <span>Presupuestos</span>
+      </a>
+    </li>
   
 
 
@@ -385,7 +397,7 @@
 
 
     </li>
-      <li class="sidebar-list"><i class="fa fa-thumb-tack"></i>
+    <li class="sidebar-list"><i class="fa fa-thumb-tack"></i>
       <a class="sidebar-link " href="{% url 'scompras:detalle_seccion_usuario' %}">
         <svg >
           <use href="{% url 'scompras:detalle_seccion_usuario' %}"></use>
@@ -398,7 +410,21 @@
 
 
     </li>
-  
+
+    <li class="sidebar-list"><i class="fa fa-thumb-tack"></i>
+      <a class="sidebar-link " href="{% url 'scompras:presupuesto_anual_list' %}">
+        <svg>
+          <use href="{% url 'scompras:presupuesto_anual_list' %}"></use>
+        </svg>
+        <svg class="fill-icon">
+          <use href="{% url 'scompras:presupuesto_anual_list' %}"></use>
+        </svg>
+        <span>Presupuestos</span>
+      </a>
+
+
+    </li>
+
   {% endif %}
 
 {% endif %}
