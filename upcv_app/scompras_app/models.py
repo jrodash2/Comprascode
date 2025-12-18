@@ -563,16 +563,32 @@ class TransferenciaPresupuestaria(models.Model):
         if self.monto is None or self.monto <= 0:
             raise ValidationError('El monto de la transferencia debe ser mayor que cero.')
         if self.renglon_origen_id and self.renglon_destino_id:
+            if self.renglon_origen_id == self.renglon_destino_id:
+                raise ValidationError('El renglón origen y destino deben ser diferentes.')
             if self.renglon_origen.presupuesto_anual_id != self.renglon_destino.presupuesto_anual_id:
                 raise ValidationError('Las transferencias solo pueden realizarse entre renglones del mismo año.')
-            if self.presupuesto_anual_id and self.presupuesto_anual_id != self.renglon_origen.presupuesto_anual_id:
-                raise ValidationError('El presupuesto anual no coincide con el de los renglones.')
+
+        presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+        if not presupuesto_activo:
+            raise ValidationError('No hay presupuesto activo para realizar transferencias.')
+        if self.presupuesto_anual_id and self.presupuesto_anual_id != presupuesto_activo.id:
+            raise ValidationError('Solo se permiten transferencias en el presupuesto activo.')
+        if self.renglon_origen_id and self.renglon_origen.presupuesto_anual_id != presupuesto_activo.id:
+            raise ValidationError('El renglón origen debe pertenecer al presupuesto activo.')
+        if self.renglon_destino_id and self.renglon_destino.presupuesto_anual_id != presupuesto_activo.id:
+            raise ValidationError('El renglón destino debe pertenecer al presupuesto activo.')
+
         if self.pk:
             raise ValidationError('Las transferencias no pueden editarse una vez creadas.')
 
     def save(self, *args, **kwargs):
         if self.pk:
             raise ValidationError('Las transferencias no pueden editarse una vez creadas.')
+        if not self.presupuesto_anual_id:
+            activo = PresupuestoAnual.presupuesto_activo()
+            if not activo:
+                raise ValidationError('No hay presupuesto activo para realizar transferencias.')
+            self.presupuesto_anual = activo
         self.full_clean()
         with transaction.atomic():
             origen = PresupuestoRenglon.objects.select_for_update().get(pk=self.renglon_origen_id)
@@ -590,15 +606,15 @@ class TransferenciaPresupuestaria(models.Model):
             destino.refresh_from_db()
             origen._registrar_kardex(
                 KardexPresupuesto.TipoMovimiento.TRANSFERENCIA_SALIDA,
-                self.monto,
+                -self.monto,
                 saldo_origen_antes,
-                f'Transferencia #{self.pk} hacia {destino.codigo_renglon}',
+                f'Transferencia #{self.pk} hacia {destino.codigo_renglon} - Presupuesto {self.presupuesto_anual.anio}',
             )
             destino._registrar_kardex(
                 KardexPresupuesto.TipoMovimiento.TRANSFERENCIA_ENTRADA,
                 self.monto,
                 saldo_destino_antes,
-                f'Transferencia #{self.pk} desde {origen.codigo_renglon}',
+                f'Transferencia #{self.pk} desde {origen.codigo_renglon} - Presupuesto {self.presupuesto_anual.anio}',
             )
         return self
     

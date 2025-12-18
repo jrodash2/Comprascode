@@ -32,6 +32,7 @@ from .form import (
     PresupuestoAnualForm,
     EjecutarCDPForm,
     LiberarCDPForm,
+    TransferenciaPresupuestariaForm,
 )
 from .models import (
     FechaInsumo,
@@ -51,6 +52,7 @@ from .models import (
     CDO,
     PresupuestoRenglon,
     PresupuestoAnual,
+    TransferenciaPresupuestaria,
 )
 from django.views.generic import CreateView
 from django.views.generic import ListView
@@ -570,6 +572,60 @@ def presupuesto_anual_detalle(request, presupuesto_id):
             'renglones': renglones,
             'form': form,
             'resumen': resumen,
+        },
+    )
+
+
+@login_required
+@grupo_requerido('Administrador')
+def transferencias_list(request):
+    presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+    transferencias = TransferenciaPresupuestaria.objects.select_related(
+        'renglon_origen', 'renglon_destino', 'presupuesto_anual'
+    )
+    if presupuesto_activo:
+        transferencias = transferencias.filter(presupuesto_anual=presupuesto_activo)
+    else:
+        messages.warning(request, 'No hay presupuesto activo para listar transferencias.')
+        transferencias = transferencias.none()
+
+    return render(
+        request,
+        'scompras/transferencias_list.html',
+        {
+            'transferencias': transferencias,
+            'presupuesto_activo': presupuesto_activo,
+        },
+    )
+
+
+@login_required
+@grupo_requerido('Administrador')
+def transferencia_crear(request):
+    presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+    if not presupuesto_activo:
+        messages.error(request, 'No hay presupuesto activo. Active un presupuesto para crear transferencias.')
+        return redirect('scompras:presupuesto_anual_list')
+
+    if request.method == 'POST':
+        form = TransferenciaPresupuestariaForm(request.POST, presupuesto_activo=presupuesto_activo)
+        if form.is_valid():
+            try:
+                form.save()
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, 'Transferencia realizada y registrada en el kardex.')
+                return redirect('scompras:transferencias_list')
+    else:
+        form = TransferenciaPresupuestariaForm(presupuesto_activo=presupuesto_activo)
+
+    return render(
+        request,
+        'scompras/transferencia_form.html',
+        {
+            'form': form,
+            'presupuesto_activo': presupuesto_activo,
         },
     )
 

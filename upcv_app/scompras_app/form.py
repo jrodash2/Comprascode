@@ -17,6 +17,7 @@ from .models import (
     CDP,
     PresupuestoRenglon,
     PresupuestoAnual,
+    TransferenciaPresupuestaria,
 )
 
 from django.db.models import Sum, F, Value
@@ -583,3 +584,56 @@ class LiberarCDPForm(forms.Form):
     def save(self):
         self.cdp.liberar()
         return self.cdp
+
+
+class TransferenciaPresupuestariaForm(forms.ModelForm):
+    """Formulario para transferir entre renglones del presupuesto activo."""
+
+    class Meta:
+        model = TransferenciaPresupuestaria
+        fields = ['renglon_origen', 'renglon_destino', 'monto', 'descripcion']
+        widgets = {
+            'renglon_origen': forms.Select(attrs={'class': 'form-control'}),
+            'renglon_destino': forms.Select(attrs={'class': 'form-control'}),
+            'monto': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.presupuesto_activo = kwargs.pop('presupuesto_activo', None) or PresupuestoAnual.presupuesto_activo()
+        super().__init__(*args, **kwargs)
+        qs = PresupuestoRenglon.objects.none()
+        if self.presupuesto_activo:
+            qs = PresupuestoRenglon.objects.filter(presupuesto_anual=self.presupuesto_activo)
+        self.fields['renglon_origen'].queryset = qs
+        self.fields['renglon_destino'].queryset = qs
+        self.fields['descripcion'].label = 'Observación'
+
+    def clean(self):
+        cleaned = super().clean()
+        if not self.presupuesto_activo:
+            raise ValidationError('No hay presupuesto activo para realizar transferencias.')
+
+        origen = cleaned.get('renglon_origen')
+        destino = cleaned.get('renglon_destino')
+        monto = cleaned.get('monto')
+
+        if origen and origen.presupuesto_anual_id != self.presupuesto_activo.id:
+            raise ValidationError('El renglón origen debe pertenecer al presupuesto activo.')
+        if destino and destino.presupuesto_anual_id != self.presupuesto_activo.id:
+            raise ValidationError('El renglón destino debe pertenecer al presupuesto activo.')
+        if origen and destino and origen == destino:
+            raise ValidationError('El renglón origen y destino deben ser diferentes.')
+        if monto is not None and monto <= 0:
+            raise ValidationError('El monto debe ser mayor que cero.')
+        if monto is not None and origen and monto > origen.monto_disponible:
+            raise ValidationError('El monto a transferir excede el disponible del renglón origen.')
+
+        return cleaned
+
+    def save(self, commit=True):
+        instancia = super().save(commit=False)
+        instancia.presupuesto_anual = self.presupuesto_activo
+        if commit:
+            instancia.save()
+        return instancia
