@@ -43,27 +43,31 @@
                 <tr>
                   <td style="padding: 30px 0px 30px 30px;">
                     <img src="{% static 'assets/images/logo/logo.png' %}" alt="logo">
+{% if mostrar_acciones_solicitud %}
 <!-- Botón Editar -->
-<button type="button" class="btn btn-light btn-sm" 
-        data-bs-toggle="modal" 
+<button type="button" class="btn btn-light btn-sm"
+        data-bs-toggle="modal"
         data-bs-target="#modalEditarSolicitud"
         style="margin-top: 10px; background-color: #ffffff; color: #0068ab; font-weight: 600; border: none; border-radius: 5px; padding: 6px 12px; cursor:pointer;">
   ✏️ Editar Solicitud
 </button>
 
 <!-- Botón Finalizar -->
-<button type="button" id="btnFinalizarSolicitud" 
+<button type="button" id="btnFinalizarSolicitud"
         class="btn btn-sm"
         style="margin-top: 10px; background-color: #ffffff; color: #0068ab; font-weight: 600; border: none; border-radius: 5px; padding: 6px 12px; cursor:pointer;">
   ✅ Finalizar Solicitud
 </button>
 
 <!-- Botón Rechazar -->
-<button id="btnRechazar" type="button" 
+{% if solicitud.estado == 'Creada' %}
+<button id="btnRechazar" type="button"
         class="btn btn-sm"
         style="margin-top: 10px; margin-left: 10px; background-color: #ffffff; color: #0068ab; font-weight: 600; border: none; border-radius: 5px; padding: 6px 12px; cursor:pointer;">
   ❌ Anular Solicitud
 </button>
+{% endif %}
+{% endif %}
 
 <!-- Botón Ver PDF (Solo cuando el estado es "Finalizada" o "Rechazada") -->
 {% if solicitud.estado == 'Finalizada' or solicitud.estado == 'Rechazada' %}
@@ -137,8 +141,10 @@
             <div class="card mt-3">
               <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">CDP de la Solicitud</h5>
-                {% if puede_crear_cdp %}
+                {% if puede_crear_cdp and es_admin %}
                   <a class="btn btn-primary btn-sm" href="{% url 'scompras:crear_cdp_solicitud' solicitud.id %}">Crear CDP</a>
+                {% elif es_scompras %}
+                  <span class="text-muted small">Solo lectura presupuestaria.</span>
                 {% elif not presupuesto_activo %}
                   <span class="text-danger small">Active un presupuesto para habilitar CDP.</span>
                 {% endif %}
@@ -152,9 +158,11 @@
                       <p class="mb-0">Monto total: <strong>{{ cdp_resumen.monto_total }}</strong></p>
                     </div>
                     <div class="text-end">
-                      {% if cdp_reservado_para_accion and puede_gestionar_cdp and cdp_reservado_para_accion.renglon.presupuesto_anual.activo %}
+                      {% if cdp_reservado_para_accion and puede_gestionar_cdp and cdp_reservado_para_accion.renglon.presupuesto_anual.activo and es_admin %}
                         <a class="btn btn-success btn-sm" href="{% url 'scompras:ejecutar_cdp' cdp_reservado_para_accion.id %}">Ejecutar CDO</a>
                         <a class="btn btn-warning btn-sm" href="{% url 'scompras:liberar_cdp' cdp_reservado_para_accion.id %}">Liberar CDP</a>
+                      {% elif es_scompras %}
+                        <span class="text-muted">Visualización informativa.</span>
                       {% elif cdp_resumen.estado == 'RESERVADO' and not presupuesto_activo %}
                         <span class="text-danger">Presupuesto inactivo.</span>
                       {% endif %}

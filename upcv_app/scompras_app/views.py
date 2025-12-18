@@ -616,6 +616,12 @@ class SolicitudCompraDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         solicitud = self.get_object()
 
+        user = self.request.user
+        es_admin = user.is_superuser or user.groups.filter(name='Administrador').exists()
+        es_scompras = user.groups.filter(name='scompras').exists()
+        estado_finalizada = solicitud.estado == 'Finalizada'
+        estado_rechazada = solicitud.estado == 'Rechazada'
+
         # Convertir la fecha de solicitud a la zona horaria local
         solicitud.fecha_solicitud = localtime(solicitud.fecha_solicitud)
 
@@ -653,23 +659,30 @@ class SolicitudCompraDetailView(DetailView):
             context['cdp_reservado_para_accion'] = cdps.filter(estado=CDP.Estado.RESERVADO).first()
 
         usuario_puede_presupuesto = (
-            self.request.user.is_superuser
-            or self.request.user.groups.filter(name__in=['Administrador', 'scompras']).exists()
+            es_admin
         )
 
         presupuesto_activo = PresupuestoAnual.presupuesto_activo()
         context['presupuesto_activo'] = presupuesto_activo
 
         context['puede_crear_cdp'] = (
-            usuario_puede_presupuesto and not context['tiene_cdo'] and presupuesto_activo is not None
+            usuario_puede_presupuesto
+            and not context['tiene_cdo']
+            and presupuesto_activo is not None
+            and not estado_rechazada
         )
         context['puede_gestionar_cdp'] = usuario_puede_presupuesto
+        context['estado_finalizada'] = estado_finalizada
+        context['estado_rechazada'] = estado_rechazada
+        context['es_admin'] = es_admin
+        context['es_scompras'] = es_scompras
+        context['mostrar_acciones_solicitud'] = not (estado_finalizada or estado_rechazada)
 
         return context
 
 
 @login_required
-@grupo_requerido('Administrador', 'scompras')
+@grupo_requerido('Administrador')
 def crear_cdp_solicitud(request, solicitud_id):
     solicitud = get_object_or_404(SolicitudCompra, pk=solicitud_id)
 
@@ -711,7 +724,7 @@ def crear_cdp_solicitud(request, solicitud_id):
 
 
 @login_required
-@grupo_requerido('Administrador', 'scompras')
+@grupo_requerido('Administrador')
 def ejecutar_cdp(request, cdp_id):
     cdp = get_object_or_404(
         CDP.objects.select_related('solicitud', 'renglon', 'renglon__presupuesto_anual'), pk=cdp_id
@@ -753,7 +766,7 @@ def ejecutar_cdp(request, cdp_id):
 
 
 @login_required
-@grupo_requerido('Administrador', 'scompras')
+@grupo_requerido('Administrador')
 def liberar_cdp(request, cdp_id):
     cdp = get_object_or_404(
         CDP.objects.select_related('solicitud', 'renglon', 'renglon__presupuesto_anual'), pk=cdp_id
@@ -983,8 +996,8 @@ def finalizar_solicitud(request):
             solicitud = get_object_or_404(SolicitudCompra, id=solicitud_id)
 
             # Verificar si la solicitud tiene un estado válido para ser finalizada
-            if solicitud.estado not in ['Creada', 'Rechazada']:
-                return JsonResponse({"success": False, "error": f"Estado de la solicitud debe ser 'Creada' o 'Rechazada' para poder finalizarla."})
+            if solicitud.estado != 'Creada':
+                return JsonResponse({"success": False, "error": "La solicitud solo puede finalizarse desde estado 'Creada'."})
 
             # Actualizar el estado a "Finalizada"
             solicitud.estado = "Finalizada"
@@ -1003,6 +1016,11 @@ def finalizar_solicitud(request):
 def rechazar_solicitud(request):
     if request.method == "POST":
         try:
+            if not (
+                request.user.is_superuser
+                or request.user.groups.filter(name__in=['Administrador', 'scompras']).exists()
+            ):
+                return JsonResponse({"success": False, "error": "No tiene permisos para rechazar la solicitud."}, status=403)
             # Cargar los datos JSON del cuerpo de la solicitud
             data = json.loads(request.body)
             solicitud_id = data.get("solicitud_id")
@@ -1014,8 +1032,8 @@ def rechazar_solicitud(request):
             solicitud = get_object_or_404(SolicitudCompra, id=solicitud_id)
 
             # Verificar si la solicitud tiene un estado válido para ser rechazada
-            if solicitud.estado not in ['Creada', 'Finalizada']:
-                return JsonResponse({"success": False, "error": f"Estado de la solicitud debe ser 'Creada' o 'Finalizada' para poder rechazarla."})
+            if solicitud.estado != 'Creada':
+                return JsonResponse({"success": False, "error": "La solicitud solo puede rechazarse una vez desde estado 'Creada'."})
 
             # Actualizar el estado a "Rechazada"
             solicitud.estado = "Rechazada"
