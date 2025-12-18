@@ -50,6 +50,7 @@ from .models import (
     CDP,
     CDO,
     PresupuestoRenglon,
+    KardexPresupuesto,
     PresupuestoAnual,
 )
 from django.views.generic import CreateView
