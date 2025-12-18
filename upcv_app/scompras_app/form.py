@@ -4,7 +4,21 @@ from django.forms import CheckboxInput, DateInput, inlineformset_factory, modelf
 from django.core.exceptions import ValidationError
 
 
-from .models import FechaInsumo, Insumo, Perfil, Departamento, Seccion, SolicitudCompra, Subproducto, UsuarioDepartamento, Institucion
+from .models import (
+    FechaInsumo,
+    Insumo,
+    Perfil,
+    Departamento,
+    Seccion,
+    SolicitudCompra,
+    Subproducto,
+    UsuarioDepartamento,
+    Institucion,
+    CDP,
+    PresupuestoRenglon,
+    PresupuestoAnual,
+    TransferenciaPresupuestaria,
+)
 
 from django.db.models import Sum, F, Value
 from django.db.models.functions import Coalesce
@@ -430,3 +444,196 @@ class FechaInsumoForm(forms.ModelForm):
         super(FechaInsumoForm, self).__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' form-control'
+
+
+class CDPForm(forms.ModelForm):
+    def __init__(self, solicitud, *args, **kwargs):
+        self.solicitud = solicitud
+        super().__init__(*args, **kwargs)
+        activo = PresupuestoAnual.presupuesto_activo()
+        queryset = PresupuestoRenglon.objects.select_related('presupuesto_anual').order_by('codigo_renglon')
+        if activo:
+            queryset = queryset.filter(presupuesto_anual=activo)
+        else:
+            queryset = queryset.none()
+
+        self.presupuesto_activo = activo
+        self.fields['renglon'].queryset = queryset
+        self.fields['renglon'].label_from_instance = (
+            lambda obj: f"{obj.codigo_renglon} ({obj.presupuesto_anual.anio}) - Disponible: {obj.monto_disponible}"
+        )
+        for field in self.fields.values():
+            field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' form-control'
+
+    class Meta:
+        model = CDP
+        fields = ['renglon', 'monto']
+        widgets = {
+            'monto': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        renglon = cleaned_data.get('renglon')
+        monto = cleaned_data.get('monto')
+
+        if not self.solicitud:
+            raise ValidationError('Debe asociar la solicitud para crear el CDP.')
+
+        if self.solicitud.cdps.filter(cdo__isnull=False).exists():
+            raise ValidationError('La solicitud ya tiene un CDO; no se pueden crear nuevos CDP.')
+
+        if renglon and monto is not None:
+            if monto <= 0:
+                raise ValidationError('El monto debe ser mayor que cero.')
+            if not self.presupuesto_activo:
+                raise ValidationError('No hay presupuesto activo para registrar el CDP.')
+            if renglon.presupuesto_anual_id != self.presupuesto_activo.id:
+                raise ValidationError('El renglón seleccionado no pertenece al presupuesto activo.')
+            if monto > renglon.monto_disponible:
+                raise ValidationError('El monto del CDP excede la disponibilidad del renglón.')
+
+        return cleaned_data
+
+
+class PresupuestoAnualForm(forms.ModelForm):
+    class Meta:
+        model = PresupuestoAnual
+        fields = ['anio', 'descripcion']
+        widgets = {
+            'anio': forms.NumberInput(attrs={'class': 'form-control', 'min': '2000'}),
+            'descripcion': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+    def clean_anio(self):
+        anio = self.cleaned_data.get('anio')
+        if anio is None or anio < 2000:
+            raise ValidationError('El año debe ser 2000 o superior.')
+        if PresupuestoAnual.objects.exclude(pk=self.instance.pk).filter(anio=anio).exists():
+            raise ValidationError('Ya existe un presupuesto para este año.')
+        return anio
+
+
+class PresupuestoRenglonForm(forms.ModelForm):
+    class Meta:
+        model = PresupuestoRenglon
+        fields = ['codigo_renglon', 'descripcion', 'monto_inicial']
+        widgets = {
+            'codigo_renglon': forms.TextInput(attrs={'class': 'form-control'}),
+            'descripcion': forms.TextInput(attrs={'class': 'form-control'}),
+            'monto_inicial': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+        }
+
+    def clean_monto_inicial(self):
+        monto = self.cleaned_data.get('monto_inicial')
+        if monto is None or monto <= 0:
+            raise ValidationError('El monto inicial debe ser mayor que cero.')
+        return monto
+
+
+class EjecutarCDPForm(forms.Form):
+    confirmar = forms.BooleanField(
+        required=True,
+        label='Confirmo la ejecución del CDP',
+        help_text='Esta acción ejecuta definitivamente el presupuesto reservado.',
+    )
+    monto = forms.DecimalField(disabled=True, required=False, label='Monto a ejecutar')
+
+    def __init__(self, cdp, *args, **kwargs):
+        self.cdp = cdp
+        initial = kwargs.pop('initial', {})
+        initial.setdefault('monto', cdp.monto)
+        kwargs['initial'] = initial
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            css_class = 'form-control' if not isinstance(field.widget, forms.CheckboxInput) else 'form-check-input'
+            field.widget.attrs['class'] = field.widget.attrs.get('class', '') + f' {css_class}'
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.cdp.estado != CDP.Estado.RESERVADO:
+            raise ValidationError('Solo se pueden ejecutar CDP en estado Reservado.')
+        if hasattr(self.cdp, 'cdo'):
+            raise ValidationError('El CDP ya tiene un CDO generado.')
+        return cleaned
+
+    def save(self):
+        return self.cdp.ejecutar()
+
+
+class LiberarCDPForm(forms.Form):
+    confirmar = forms.BooleanField(
+        required=True,
+        label='Confirmo la liberación del CDP',
+        help_text='La reserva se devolverá al presupuesto disponible.',
+    )
+
+    def __init__(self, cdp, *args, **kwargs):
+        self.cdp = cdp
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            css_class = 'form-control' if not isinstance(field.widget, forms.CheckboxInput) else 'form-check-input'
+            field.widget.attrs['class'] = field.widget.attrs.get('class', '') + f' {css_class}'
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.cdp.estado != CDP.Estado.RESERVADO:
+            raise ValidationError('Solo se pueden liberar CDP en estado Reservado.')
+        return cleaned
+
+    def save(self):
+        self.cdp.liberar()
+        return self.cdp
+
+
+class TransferenciaPresupuestariaForm(forms.ModelForm):
+    """Formulario para transferir entre renglones del presupuesto activo."""
+
+    class Meta:
+        model = TransferenciaPresupuestaria
+        fields = ['renglon_origen', 'renglon_destino', 'monto', 'descripcion']
+        widgets = {
+            'renglon_origen': forms.Select(attrs={'class': 'form-control'}),
+            'renglon_destino': forms.Select(attrs={'class': 'form-control'}),
+            'monto': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.presupuesto_activo = kwargs.pop('presupuesto_activo', None) or PresupuestoAnual.presupuesto_activo()
+        super().__init__(*args, **kwargs)
+        qs = PresupuestoRenglon.objects.none()
+        if self.presupuesto_activo:
+            qs = PresupuestoRenglon.objects.filter(presupuesto_anual=self.presupuesto_activo)
+        self.fields['renglon_origen'].queryset = qs
+        self.fields['renglon_destino'].queryset = qs
+        self.fields['descripcion'].label = 'Observación'
+
+    def clean(self):
+        cleaned = super().clean()
+        if not self.presupuesto_activo:
+            raise ValidationError('No hay presupuesto activo para realizar transferencias.')
+
+        origen = cleaned.get('renglon_origen')
+        destino = cleaned.get('renglon_destino')
+        monto = cleaned.get('monto')
+
+        if origen and origen.presupuesto_anual_id != self.presupuesto_activo.id:
+            raise ValidationError('El renglón origen debe pertenecer al presupuesto activo.')
+        if destino and destino.presupuesto_anual_id != self.presupuesto_activo.id:
+            raise ValidationError('El renglón destino debe pertenecer al presupuesto activo.')
+        if origen and destino and origen == destino:
+            raise ValidationError('El renglón origen y destino deben ser diferentes.')
+        if monto is not None and monto <= 0:
+            raise ValidationError('El monto debe ser mayor que cero.')
+        if monto is not None and origen and monto > origen.monto_disponible:
+            raise ValidationError('El monto a transferir excede el disponible del renglón origen.')
+
+        return cleaned
+
+    def save(self, commit=True):
+        instancia = super().save(commit=False)
+        instancia.presupuesto_anual = self.presupuesto_activo
+        if commit:
+            instancia.save()
+        return instancia

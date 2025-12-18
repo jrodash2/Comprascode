@@ -10,7 +10,7 @@ handler403 = 'scompras_app.views.acceso_denegado'  # Asegúrate que el nombre de
 
 urlpatterns = [
     path('', views.home, name='home'), 
-    path('dahsboard/', views.dahsboard, name='dahsboard'),
+    path('dahsboard/', views.dashboard_admin, name='dahsboard'),  # compatibilidad con ruta previa
     path('signin/', views.signin, name='signin'),
     path('logout/', views.signout, name='logout'),
 
@@ -22,7 +22,9 @@ urlpatterns = [
     path('agregar-insumo-solicitud/', views.agregar_insumo_solicitud, name='agregar_insumo_solicitud'),
     path('eliminar-servicio/<int:servicio_id>/', views.eliminar_servicio_solicitud, name='eliminar_servicio_solicitud'),
     path('detalle-seccion-usuario/', views.detalle_seccion_usuario, name='detalle_seccion_usuario'),
-    path('dashboard-usuario/', views.dashboard_usuario, name='dashboard_usuario'),
+    path('dashboard-usuario/', views.dashboard_scompras, name='dashboard_usuario'),
+    path('dashboard/admin/', views.dashboard_admin, name='dashboard_admin'),
+    path('dashboard/scompras/', views.dashboard_scompras, name='dashboard_scompras'),
 
     
     
@@ -33,6 +35,15 @@ urlpatterns = [
     path('usuario/editar/<int:user_id>/', views.user_edit, name='user_edit'),
 
     path('usuario/eliminar/<int:user_id>/', views.user_delete, name='user_delete'),
+
+    # Presupuesto
+    path('presupuestos/', views.presupuesto_anual_list, name='presupuesto_anual_list'),
+    path('presupuestos/crear/', views.presupuesto_anual_crear, name='presupuesto_anual_crear'),
+    path('presupuestos/<int:presupuesto_id>/', views.presupuesto_anual_detalle, name='presupuesto_anual_detalle'),
+    path('presupuestos/<int:presupuesto_id>/activar/', views.activar_presupuesto, name='activar_presupuesto'),
+    path('presupuestos/renglon/<int:renglon_id>/kardex/', views.kardex_renglon, name='kardex_renglon'),
+    path('presupuestos/transferencias/', views.transferencias_list, name='transferencias_list'),
+    path('presupuestos/transferencias/crear/', views.transferencia_crear, name='transferencia_crear'),
 
     # Departamentos
     path('departamento/', views.crear_departamento, name='crear_departamento'),
@@ -46,6 +57,9 @@ urlpatterns = [
     path('ajax/cargar-secciones/', views.ajax_cargar_secciones, name='ajax_cargar_secciones'),
     path('ajax/cargar_subproductos/', views.ajax_cargar_subproductos, name='ajax_cargar_subproductos'),
     path('solicitud/<int:pk>/',views.SolicitudCompraDetailView.as_view(), name='detalle_solicitud'),
+    path('solicitud/<int:solicitud_id>/cdp/nuevo/', views.crear_cdp_solicitud, name='crear_cdp_solicitud'),
+    path('cdp/<int:cdp_id>/ejecutar/', views.ejecutar_cdp, name='ejecutar_cdp'),
+    path('cdp/<int:cdp_id>/liberar/', views.liberar_cdp, name='liberar_cdp'),
     path('solicitud/eliminar_insumo/<int:detalle_id>/', views.eliminar_detalle_solicitud, name='eliminar_detalle_solicitud'),
     path('editar-solicitud/', views.editar_solicitud, name='editar_solicitud'),
     path('subproductos/<int:producto_id>/', views.obtener_subproductos, name='obtener_subproductos'),
