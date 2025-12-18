@@ -50,7 +50,6 @@ from .models import (
     CDP,
     CDO,
     PresupuestoRenglon,
-    KardexPresupuesto,
     PresupuestoAnual,
 )
 from django.views.generic import CreateView
@@ -62,7 +61,7 @@ from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.db import models
-from django.db.models import Sum, F, Value, Count, Q, Case, When, OuterRef, Subquery, IntegerField
+from django.db.models import Sum, F, Value, Count, Q, Case, When, OuterRef, Subquery, IntegerField, DecimalField, ExpressionWrapper
 from django.contrib.auth.decorators import login_required, user_passes_test
 from collections import defaultdict
 from django.shortcuts import get_object_or_404, redirect
@@ -1105,40 +1104,84 @@ from django.db.models import Count, Q, Sum
 import json
 
 
-def dahsboard(request):
-    # Agrupar solicitudes por sección y año
-    solicitudes_por_anio = (
+@login_required
+@grupo_requerido('Administrador')
+def dashboard_admin(request):
+    """Dashboard consolidado para administradores con métricas institucionales."""
+
+    solicitudes_estado = list(
+        SolicitudCompra.objects.values('estado').annotate(total=Count('id')).order_by('estado')
+    )
+
+    solicitudes_anio = list(
         SolicitudCompra.objects
         .annotate(anio=ExtractYear('fecha_solicitud'))
-        .values('seccion__nombre', 'anio')  # Agrupar por nombre de sección
-        .annotate(total=Count('id'))  # Cuenta las solicitudes por cada sección y año
-        .order_by('anio', 'seccion__nombre')
-    )
-
-    # Agrupar solicitudes por sección y mes (del año actual)
-    anio_actual = date.today().year
-
-    solicitudes_por_mes = (
-        SolicitudCompra.objects
-        .filter(fecha_solicitud__year=anio_actual)
-        .annotate(mes=ExtractMonth('fecha_solicitud'))
-        .values('seccion__nombre', 'mes')  # Agrupar por nombre de sección
+        .values('anio')
         .annotate(total=Count('id'))
-        .order_by('mes', 'seccion__nombre')
+        .order_by('anio')
     )
 
-    # Obtener la lista de años disponibles en las solicitudes
-    anios_disponibles = SolicitudCompra.objects.annotate(anio=ExtractYear('fecha_solicitud')).values('anio').distinct().order_by('anio')
-    anios_list = [anio['anio'] for anio in anios_disponibles]
+    solicitudes_departamento = list(
+        SolicitudCompra.objects
+        .values('seccion__departamento__nombre')
+        .annotate(total=Count('id'))
+        .order_by('seccion__departamento__nombre')
+    )
+
+    presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+    presupuesto_resumen = None
+    renglones_resumen = []
+
+    if presupuesto_activo:
+        renglones_qs = presupuesto_activo.renglones.annotate(
+            disponible=ExpressionWrapper(
+                F('monto_inicial') + F('monto_modificado') - (F('monto_reservado') + F('monto_ejecutado')),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            )
+        )
+        totales = renglones_qs.aggregate(
+            total_inicial=Sum('monto_inicial'),
+            total_modificado=Sum('monto_modificado'),
+            total_reservado=Sum('monto_reservado'),
+            total_ejecutado=Sum('monto_ejecutado'),
+        )
+
+        total_inicial = totales.get('total_inicial') or Decimal('0.00')
+        total_modificado = totales.get('total_modificado') or Decimal('0.00')
+        total_reservado = totales.get('total_reservado') or Decimal('0.00')
+        total_ejecutado = totales.get('total_ejecutado') or Decimal('0.00')
+        total_disponible = (total_inicial + total_modificado) - (total_reservado + total_ejecutado)
+
+        presupuesto_resumen = {
+            'anio': presupuesto_activo.anio,
+            'total_inicial': total_inicial,
+            'total_modificado': total_modificado,
+            'total_reservado': total_reservado,
+            'total_ejecutado': total_ejecutado,
+            'total_disponible': total_disponible,
+        }
+
+        renglones_resumen = list(
+            renglones_qs.values(
+                'codigo_renglon',
+                'descripcion',
+                'monto_inicial',
+                'monto_modificado',
+                'monto_reservado',
+                'monto_ejecutado',
+                'disponible',
+            )
+        )
 
     context = {
-        'solicitudes_por_anio': list(solicitudes_por_anio),
-        'solicitudes_por_mes': list(solicitudes_por_mes),
-        'anio_actual': anio_actual,
-        'anios': anios_list,  # Pasamos la lista de años disponibles
+        'solicitudes_estado_json': json.dumps(solicitudes_estado),
+        'solicitudes_anio_json': json.dumps(solicitudes_anio),
+        'solicitudes_departamento_json': json.dumps(solicitudes_departamento),
+        'presupuesto_resumen': presupuesto_resumen,
+        'renglones_resumen_json': json.dumps(renglones_resumen, default=str),
     }
 
-    return render(request, 'scompras/dahsboard.html', context)
+    return render(request, 'scompras/dashboard_admin.html', context)
 
 
 from django.db.models import Count
@@ -1146,55 +1189,35 @@ from django.db.models.functions import ExtractYear, ExtractMonth
 from datetime import date
 
 @login_required
-def dashboard_usuario(request):
-    user = request.user
+@grupo_requerido('scompras')
+def dashboard_scompras(request):
+    """Dashboard operativo para usuarios de compras sin mostrar cifras presupuestarias."""
 
     asignacion = (
         UsuarioDepartamento.objects
-        .filter(usuario=user)
+        .filter(usuario=request.user)
         .select_related('seccion', 'departamento')
         .first()
     )
 
     if not asignacion or not asignacion.seccion:
-        return render(request, 'scompras/sin_seccion.html', {
-            'mensaje': 'No tienes asignada ninguna sección.'
-        })
+        messages.warning(request, 'No tienes una sección asignada, no es posible calcular tus métricas.')
+        return render(request, 'scompras/sin_seccion.html', {'mensaje': 'No tienes asignada ninguna sección.'})
 
-    seccion = asignacion.seccion
-
-    # 🔹 Agrupar solicitudes por año y mes (una sola consulta)
-    solicitudes_por_anio_mes = (
-        SolicitudCompra.objects
-        .filter(seccion=seccion)
-        .annotate(
-            anio=ExtractYear('fecha_solicitud'),
-            mes=ExtractMonth('fecha_solicitud')
-        )
-        .values('anio', 'mes')
-        .annotate(total=Count('id'))
-        .order_by('anio', 'mes')
+    solicitudes_qs = SolicitudCompra.objects.filter(seccion=asignacion.seccion)
+    total_solicitudes = solicitudes_qs.count()
+    solicitudes_estado = list(
+        solicitudes_qs.values('estado').annotate(total=Count('id')).order_by('estado')
     )
-
-    # 🔹 Años disponibles (por si quieres filtros o mostrar en el dashboard)
-    anios_disponibles = (
-        SolicitudCompra.objects
-        .filter(seccion=seccion)
-        .annotate(anio=ExtractYear('fecha_solicitud'))
-        .values('anio')
-        .distinct()
-        .order_by('anio')
-    )
-    anios_list = [a['anio'] for a in anios_disponibles]
 
     context = {
-        'seccion': seccion,
+        'seccion': asignacion.seccion,
         'departamento': asignacion.departamento,
-        'solicitudes_por_anio_mes': list(solicitudes_por_anio_mes),
-        'anios': anios_list,
+        'total_solicitudes': total_solicitudes,
+        'solicitudes_estado_json': json.dumps(solicitudes_estado),
     }
 
-    return render(request, 'scompras/dashboard_usuario.html', context)
+    return render(request, 'scompras/dashboard_scompras.html', context)
 
 
 

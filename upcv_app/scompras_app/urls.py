@@ -10,7 +10,7 @@ handler403 = 'scompras_app.views.acceso_denegado'  # Asegúrate que el nombre de
 
 urlpatterns = [
     path('', views.home, name='home'), 
-    path('dahsboard/', views.dahsboard, name='dahsboard'),
+    path('dahsboard/', views.dashboard_admin, name='dahsboard'),  # compatibilidad con ruta previa
     path('signin/', views.signin, name='signin'),
     path('logout/', views.signout, name='logout'),
 
@@ -22,7 +22,9 @@ urlpatterns = [
     path('agregar-insumo-solicitud/', views.agregar_insumo_solicitud, name='agregar_insumo_solicitud'),
     path('eliminar-servicio/<int:servicio_id>/', views.eliminar_servicio_solicitud, name='eliminar_servicio_solicitud'),
     path('detalle-seccion-usuario/', views.detalle_seccion_usuario, name='detalle_seccion_usuario'),
-    path('dashboard-usuario/', views.dashboard_usuario, name='dashboard_usuario'),
+    path('dashboard-usuario/', views.dashboard_scompras, name='dashboard_usuario'),
+    path('dashboard/admin/', views.dashboard_admin, name='dashboard_admin'),
+    path('dashboard/scompras/', views.dashboard_scompras, name='dashboard_scompras'),
 
     
     

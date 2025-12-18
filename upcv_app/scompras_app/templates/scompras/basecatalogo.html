@@ -269,8 +269,8 @@
   {% endif %}
 
   {# Mostrar "Configuración" solo a Administradores #}
-  {% if es_administrador %}
-    <li class="sidebar-list" ><i class="fa fa-thumb-tack"> </i><a class="sidebar-link " href="{% url 'scompras:dahsboard' %}">
+  {% if es_administrador or user.is_superuser %}
+    <li class="sidebar-list" ><i class="fa fa-thumb-tack"> </i><a class="sidebar-link " href="{% url 'scompras:dashboard_admin' %}">
                     <svg >
                       <use href="../assets/svg/icon-sprite.svg#stroke-home"></use>
                     </svg>
@@ -335,7 +335,7 @@
   
   {# Mostrar "Configuración" solo a scompras #}
   {% if es_scompras %}
-    <li class="sidebar-list" ><i class="fa fa-thumb-tack"> </i><a class="sidebar-link " href="{% url 'scompras:dashboard_usuario' %}">
+    <li class="sidebar-list" ><i class="fa fa-thumb-tack"> </i><a class="sidebar-link " href="{% url 'scompras:dashboard_scompras' %}">
                     <svg >
                       <use href="../assets/svg/icon-sprite.svg#stroke-home"></use>
                     </svg>
