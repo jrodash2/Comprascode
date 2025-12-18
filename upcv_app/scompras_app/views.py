@@ -14,8 +14,46 @@ from django.urls import reverse
 import openpyxl
 from django.views.decorators.csrf import csrf_exempt
 import pandas as pd
-from .form import ExcelUploadForm, SeccionForm, FechaInsumoForm, PerfilForm, SolicitudCompraForm, SolicitudCompraFormcrear, UserCreateForm, UserEditForm, UserCreateForm, DepartamentoForm, UsuarioDepartamentoForm, InstitucionForm
-from .models import  FechaInsumo, Producto, Insumo, InsumoSolicitud, Perfil, Departamento, Seccion, SolicitudCompra, Subproducto, UsuarioDepartamento, Institucion, Servicio, ServicioSolicitud
+from .form import (
+    ExcelUploadForm,
+    SeccionForm,
+    FechaInsumoForm,
+    PerfilForm,
+    SolicitudCompraForm,
+    SolicitudCompraFormcrear,
+    UserCreateForm,
+    UserEditForm,
+    UserCreateForm,
+    DepartamentoForm,
+    UsuarioDepartamentoForm,
+    InstitucionForm,
+    CDPForm,
+    PresupuestoRenglonForm,
+    PresupuestoAnualForm,
+    EjecutarCDPForm,
+    LiberarCDPForm,
+    TransferenciaPresupuestariaForm,
+)
+from .models import (
+    FechaInsumo,
+    Producto,
+    Insumo,
+    InsumoSolicitud,
+    Perfil,
+    Departamento,
+    Seccion,
+    SolicitudCompra,
+    Subproducto,
+    UsuarioDepartamento,
+    Institucion,
+    Servicio,
+    ServicioSolicitud,
+    CDP,
+    CDO,
+    PresupuestoRenglon,
+    PresupuestoAnual,
+    TransferenciaPresupuestaria,
+)
 from django.views.generic import CreateView
 from django.views.generic import ListView
 from django.urls import reverse_lazy
@@ -25,7 +63,7 @@ from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.db import models
-from django.db.models import Sum, F, Value, Count, Q, Case, When, OuterRef, Subquery, IntegerField
+from django.db.models import Sum, F, Value, Count, Q, Case, When, OuterRef, Subquery, IntegerField, DecimalField, ExpressionWrapper
 from django.contrib.auth.decorators import login_required, user_passes_test
 from collections import defaultdict
 from django.shortcuts import get_object_or_404, redirect
@@ -453,6 +491,180 @@ def user_edit(request, user_id):
 from django.utils.timezone import localtime
 from django.template.defaultfilters import date as django_date
 
+
+@login_required
+@grupo_requerido('Administrador', 'scompras')
+def presupuesto_anual_list(request):
+    presupuestos = (
+        PresupuestoAnual.objects.prefetch_related('renglones')
+        .annotate(total_renglones=Count('renglones'))
+        .order_by('-anio')
+    )
+    return render(
+        request,
+        'scompras/presupuestos_list.html',
+        {
+            'presupuestos': presupuestos,
+            # Simplify template conditions by passing a boolean flag instead of calling
+            # queryset methods from the template engine.
+            'es_admin': request.user.is_superuser
+            or request.user.groups.filter(name='Administrador').exists(),
+        },
+    )
+
+
+@login_required
+@grupo_requerido('Administrador', 'scompras')
+def presupuesto_anual_crear(request):
+    if request.method == 'POST':
+        form = PresupuestoAnualForm(request.POST)
+        if form.is_valid():
+            presupuesto = form.save()
+            messages.success(request, 'Presupuesto anual creado correctamente.')
+            return redirect('scompras:presupuesto_anual_detalle', presupuesto_id=presupuesto.id)
+    else:
+        form = PresupuestoAnualForm()
+
+    return render(
+        request,
+        'scompras/presupuesto_form.html',
+        {
+            'form': form,
+        },
+    )
+
+
+@login_required
+@grupo_requerido('Administrador', 'scompras')
+def presupuesto_anual_detalle(request, presupuesto_id):
+    presupuesto = get_object_or_404(PresupuestoAnual.objects.prefetch_related('renglones'), pk=presupuesto_id)
+    renglones = presupuesto.renglones.all()
+
+    if request.method == 'POST':
+        if not presupuesto.activo:
+            messages.error(request, 'Solo el presupuesto activo permite crear renglones. Active este presupuesto primero.')
+            return redirect('scompras:presupuesto_anual_detalle', presupuesto_id=presupuesto.id)
+        form = PresupuestoRenglonForm(request.POST)
+        if form.is_valid():
+            renglon = form.save(commit=False)
+            renglon.presupuesto_anual = presupuesto
+            try:
+                renglon.save()
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, 'Renglón creado correctamente.')
+                return redirect('scompras:presupuesto_anual_detalle', presupuesto_id=presupuesto.id)
+    else:
+        form = PresupuestoRenglonForm()
+
+    resumen = renglones.aggregate(
+        total_inicial=Coalesce(Sum('monto_inicial'), Value(0, output_field=models.DecimalField(max_digits=14, decimal_places=2))),
+        total_modificado=Coalesce(Sum('monto_modificado'), Value(0, output_field=models.DecimalField(max_digits=14, decimal_places=2))),
+        total_reservado=Coalesce(Sum('monto_reservado'), Value(0, output_field=models.DecimalField(max_digits=14, decimal_places=2))),
+        total_ejecutado=Coalesce(Sum('monto_ejecutado'), Value(0, output_field=models.DecimalField(max_digits=14, decimal_places=2))),
+    )
+    resumen['total_disponible'] = (resumen['total_inicial'] + resumen['total_modificado']) - (
+        resumen['total_reservado'] + resumen['total_ejecutado']
+    )
+
+    return render(
+        request,
+        'scompras/presupuesto_detalle.html',
+        {
+            'presupuesto': presupuesto,
+            'renglones': renglones,
+            'form': form,
+            'resumen': resumen,
+        },
+    )
+
+
+@login_required
+@grupo_requerido('Administrador')
+def transferencias_list(request):
+    presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+    transferencias = TransferenciaPresupuestaria.objects.select_related(
+        'renglon_origen', 'renglon_destino', 'presupuesto_anual'
+    )
+    if presupuesto_activo:
+        transferencias = transferencias.filter(presupuesto_anual=presupuesto_activo)
+    else:
+        messages.warning(request, 'No hay presupuesto activo para listar transferencias.')
+        transferencias = transferencias.none()
+
+    return render(
+        request,
+        'scompras/transferencias_list.html',
+        {
+            'transferencias': transferencias,
+            'presupuesto_activo': presupuesto_activo,
+        },
+    )
+
+
+@login_required
+@grupo_requerido('Administrador')
+def transferencia_crear(request):
+    presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+    if not presupuesto_activo:
+        messages.error(request, 'No hay presupuesto activo. Active un presupuesto para crear transferencias.')
+        return redirect('scompras:presupuesto_anual_list')
+
+    if request.method == 'POST':
+        form = TransferenciaPresupuestariaForm(request.POST, presupuesto_activo=presupuesto_activo)
+        if form.is_valid():
+            try:
+                form.save()
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, 'Transferencia realizada y registrada en el kardex.')
+                return redirect('scompras:transferencias_list')
+    else:
+        form = TransferenciaPresupuestariaForm(presupuesto_activo=presupuesto_activo)
+
+    return render(
+        request,
+        'scompras/transferencia_form.html',
+        {
+            'form': form,
+            'presupuesto_activo': presupuesto_activo,
+        },
+    )
+
+
+@login_required
+@grupo_requerido('Administrador', 'scompras')
+@require_POST
+def activar_presupuesto(request, presupuesto_id):
+    presupuesto = get_object_or_404(PresupuestoAnual, pk=presupuesto_id)
+    presupuesto.activar()
+    messages.success(request, f'Presupuesto {presupuesto.anio} activado. Los demás presupuestos han sido desactivados.')
+    return redirect('scompras:presupuesto_anual_detalle', presupuesto_id=presupuesto.id)
+
+
+@login_required
+@grupo_requerido('Administrador', 'scompras')
+def kardex_renglon(request, renglon_id):
+    renglon = get_object_or_404(
+        PresupuestoRenglon.objects.select_related('presupuesto_anual'), pk=renglon_id
+    )
+    movimientos = renglon.kardex.select_related('solicitud').order_by('fecha', 'id')
+    tipo = request.GET.get('tipo')
+    if tipo:
+        movimientos = movimientos.filter(tipo=tipo)
+    return render(
+        request,
+        'scompras/kardex_renglon.html',
+        {
+            'renglon': renglon,
+            'movimientos': movimientos,
+            'tipos': KardexPresupuesto.TipoMovimiento.choices,
+            'tipo_filtrado': tipo,
+        },
+    )
+
 class SolicitudCompraDetailView(DetailView):
     model = SolicitudCompra
     template_name = 'scompras/detalle_solicitud.html'
@@ -463,6 +675,12 @@ class SolicitudCompraDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         solicitud = self.get_object()
+
+        user = self.request.user
+        es_admin = user.is_superuser or user.groups.filter(name='Administrador').exists()
+        es_scompras = user.groups.filter(name='scompras').exists()
+        estado_finalizada = solicitud.estado == 'Finalizada'
+        estado_rechazada = solicitud.estado == 'Rechazada'
 
         # Convertir la fecha de solicitud a la zona horaria local
         solicitud.fecha_solicitud = localtime(solicitud.fecha_solicitud)
@@ -476,8 +694,177 @@ class SolicitudCompraDetailView(DetailView):
         context['ultima_fecha_insumo'] = FechaInsumo.objects.last()
         context['productos'] = Producto.objects.filter(activo=True)
         context['subproductos'] = Subproducto.objects.filter(activo=True)
+        cdps = solicitud.cdps.select_related('renglon', 'renglon__presupuesto_anual', 'cdo').all()
+        context['cdps'] = cdps
+        context['tiene_cdo'] = cdps.filter(cdo__isnull=False).exists()
+
+        if cdps:
+            cdp_principal = cdps.first()
+            context['cdp_principal'] = cdp_principal
+            total_cdp = cdps.aggregate(total=Sum('monto'))['total'] or Decimal('0.00')
+            if cdps.filter(estado=CDP.Estado.EJECUTADO).exists():
+                estado_resumen = CDP.Estado.EJECUTADO
+            elif cdps.filter(estado=CDP.Estado.RESERVADO).exists():
+                estado_resumen = CDP.Estado.RESERVADO
+            elif cdps.filter(estado=CDP.Estado.LIBERADO).exists():
+                estado_resumen = CDP.Estado.LIBERADO
+            else:
+                estado_resumen = None
+            context['cdp_resumen'] = {
+                'id': cdp_principal.id,
+                'estado': estado_resumen,
+                'estado_display': dict(CDP.Estado.choices).get(estado_resumen, 'Sin estado'),
+                'monto_total': total_cdp,
+            }
+            context['cdp_reservado_para_accion'] = cdps.filter(estado=CDP.Estado.RESERVADO).first()
+
+        usuario_puede_presupuesto = (
+            es_admin
+        )
+
+        presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+        context['presupuesto_activo'] = presupuesto_activo
+
+        context['puede_crear_cdp'] = (
+            usuario_puede_presupuesto
+            and not context['tiene_cdo']
+            and presupuesto_activo is not None
+            and not estado_rechazada
+        )
+        context['puede_gestionar_cdp'] = usuario_puede_presupuesto
+        context['estado_finalizada'] = estado_finalizada
+        context['estado_rechazada'] = estado_rechazada
+        context['es_admin'] = es_admin
+        context['es_scompras'] = es_scompras
+        context['mostrar_acciones_solicitud'] = not (estado_finalizada or estado_rechazada)
 
         return context
+
+
+@login_required
+@grupo_requerido('Administrador')
+def crear_cdp_solicitud(request, solicitud_id):
+    solicitud = get_object_or_404(SolicitudCompra, pk=solicitud_id)
+
+    presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+    if not presupuesto_activo:
+        messages.error(request, 'No hay presupuesto activo. Active un presupuesto anual antes de crear un CDP.')
+        return redirect('scompras:detalle_solicitud', pk=solicitud.id)
+
+    if solicitud.cdps.filter(cdo__isnull=False).exists():
+        messages.error(request, 'La solicitud ya cuenta con un CDO generado, no puede crear nuevos CDP.')
+        return redirect('scompras:detalle_solicitud', pk=solicitud.id)
+
+    if request.method == 'POST':
+        form = CDPForm(solicitud, request.POST)
+        if form.is_valid():
+            cdp = form.save(commit=False)
+            cdp.solicitud = solicitud
+            try:
+                cdp.save()
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, 'CDP creado y presupuesto reservado correctamente.')
+                return redirect('scompras:detalle_solicitud', pk=solicitud.id)
+    else:
+        form = CDPForm(solicitud)
+
+    renglones_disponibles = form.fields['renglon'].queryset
+
+    return render(
+        request,
+        'scompras/cdp_form.html',
+        {
+            'form': form,
+            'solicitud': solicitud,
+        'renglones_disponibles': renglones_disponibles,
+        },
+    )
+
+
+@login_required
+@grupo_requerido('Administrador')
+def ejecutar_cdp(request, cdp_id):
+    cdp = get_object_or_404(
+        CDP.objects.select_related('solicitud', 'renglon', 'renglon__presupuesto_anual'), pk=cdp_id
+    )
+
+    presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+    if not presupuesto_activo:
+        messages.error(request, 'No hay presupuesto activo. Active un presupuesto anual antes de ejecutar un CDP.')
+        return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
+    if cdp.renglon.presupuesto_anual_id != presupuesto_activo.id:
+        messages.error(request, 'Solo se pueden ejecutar CDP del presupuesto activo.')
+        return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
+
+    if cdp.estado != CDP.Estado.RESERVADO or hasattr(cdp, 'cdo'):
+        messages.error(request, 'El CDP no está en estado Reservado o ya fue ejecutado.')
+        return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
+
+    if request.method == 'POST':
+        form = EjecutarCDPForm(cdp, request.POST)
+        if form.is_valid():
+            try:
+                form.save()
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, 'CDP ejecutado y CDO generado correctamente.')
+                return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
+    else:
+        form = EjecutarCDPForm(cdp)
+
+    return render(
+        request,
+        'scompras/cdo_form.html',
+        {
+            'form': form,
+            'cdp': cdp,
+        },
+    )
+
+
+@login_required
+@grupo_requerido('Administrador')
+def liberar_cdp(request, cdp_id):
+    cdp = get_object_or_404(
+        CDP.objects.select_related('solicitud', 'renglon', 'renglon__presupuesto_anual'), pk=cdp_id
+    )
+
+    presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+    if not presupuesto_activo:
+        messages.error(request, 'No hay presupuesto activo. Active un presupuesto anual antes de liberar un CDP.')
+        return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
+    if cdp.renglon.presupuesto_anual_id != presupuesto_activo.id:
+        messages.error(request, 'Solo se pueden liberar CDP del presupuesto activo.')
+        return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
+
+    if cdp.estado != CDP.Estado.RESERVADO:
+        messages.error(request, 'Solo los CDP en estado Reservado pueden liberarse.')
+        return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
+
+    if request.method == 'POST':
+        form = LiberarCDPForm(cdp, request.POST)
+        if form.is_valid():
+            try:
+                form.save()
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, 'Reserva liberada y presupuesto devuelto correctamente.')
+                return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
+    else:
+        form = LiberarCDPForm(cdp)
+
+    return render(
+        request,
+        'scompras/cdp_liberar.html',
+        {
+            'form': form,
+            'cdp': cdp,
+        },
+    )
 
 
 from django.db.models.signals import pre_save
@@ -669,8 +1056,8 @@ def finalizar_solicitud(request):
             solicitud = get_object_or_404(SolicitudCompra, id=solicitud_id)
 
             # Verificar si la solicitud tiene un estado válido para ser finalizada
-            if solicitud.estado not in ['Creada', 'Rechazada']:
-                return JsonResponse({"success": False, "error": f"Estado de la solicitud debe ser 'Creada' o 'Rechazada' para poder finalizarla."})
+            if solicitud.estado != 'Creada':
+                return JsonResponse({"success": False, "error": "La solicitud solo puede finalizarse desde estado 'Creada'."})
 
             # Actualizar el estado a "Finalizada"
             solicitud.estado = "Finalizada"
@@ -689,6 +1076,11 @@ def finalizar_solicitud(request):
 def rechazar_solicitud(request):
     if request.method == "POST":
         try:
+            if not (
+                request.user.is_superuser
+                or request.user.groups.filter(name__in=['Administrador', 'scompras']).exists()
+            ):
+                return JsonResponse({"success": False, "error": "No tiene permisos para rechazar la solicitud."}, status=403)
             # Cargar los datos JSON del cuerpo de la solicitud
             data = json.loads(request.body)
             solicitud_id = data.get("solicitud_id")
@@ -700,8 +1092,8 @@ def rechazar_solicitud(request):
             solicitud = get_object_or_404(SolicitudCompra, id=solicitud_id)
 
             # Verificar si la solicitud tiene un estado válido para ser rechazada
-            if solicitud.estado not in ['Creada', 'Finalizada']:
-                return JsonResponse({"success": False, "error": f"Estado de la solicitud debe ser 'Creada' o 'Finalizada' para poder rechazarla."})
+            if solicitud.estado != 'Creada':
+                return JsonResponse({"success": False, "error": "La solicitud solo puede rechazarse una vez desde estado 'Creada'."})
 
             # Actualizar el estado a "Rechazada"
             solicitud.estado = "Rechazada"
@@ -772,40 +1164,84 @@ from django.db.models import Count, Q, Sum
 import json
 
 
-def dahsboard(request):
-    # Agrupar solicitudes por sección y año
-    solicitudes_por_anio = (
+@login_required
+@grupo_requerido('Administrador')
+def dashboard_admin(request):
+    """Dashboard consolidado para administradores con métricas institucionales."""
+
+    solicitudes_estado = list(
+        SolicitudCompra.objects.values('estado').annotate(total=Count('id')).order_by('estado')
+    )
+
+    solicitudes_anio = list(
         SolicitudCompra.objects
         .annotate(anio=ExtractYear('fecha_solicitud'))
-        .values('seccion__nombre', 'anio')  # Agrupar por nombre de sección
-        .annotate(total=Count('id'))  # Cuenta las solicitudes por cada sección y año
-        .order_by('anio', 'seccion__nombre')
-    )
-
-    # Agrupar solicitudes por sección y mes (del año actual)
-    anio_actual = date.today().year
-
-    solicitudes_por_mes = (
-        SolicitudCompra.objects
-        .filter(fecha_solicitud__year=anio_actual)
-        .annotate(mes=ExtractMonth('fecha_solicitud'))
-        .values('seccion__nombre', 'mes')  # Agrupar por nombre de sección
+        .values('anio')
         .annotate(total=Count('id'))
-        .order_by('mes', 'seccion__nombre')
+        .order_by('anio')
     )
 
-    # Obtener la lista de años disponibles en las solicitudes
-    anios_disponibles = SolicitudCompra.objects.annotate(anio=ExtractYear('fecha_solicitud')).values('anio').distinct().order_by('anio')
-    anios_list = [anio['anio'] for anio in anios_disponibles]
+    solicitudes_departamento = list(
+        SolicitudCompra.objects
+        .values('seccion__departamento__nombre')
+        .annotate(total=Count('id'))
+        .order_by('seccion__departamento__nombre')
+    )
+
+    presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+    presupuesto_resumen = None
+    renglones_resumen = []
+
+    if presupuesto_activo:
+        renglones_qs = presupuesto_activo.renglones.annotate(
+            disponible=ExpressionWrapper(
+                F('monto_inicial') + F('monto_modificado') - (F('monto_reservado') + F('monto_ejecutado')),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            )
+        )
+        totales = renglones_qs.aggregate(
+            total_inicial=Sum('monto_inicial'),
+            total_modificado=Sum('monto_modificado'),
+            total_reservado=Sum('monto_reservado'),
+            total_ejecutado=Sum('monto_ejecutado'),
+        )
+
+        total_inicial = totales.get('total_inicial') or Decimal('0.00')
+        total_modificado = totales.get('total_modificado') or Decimal('0.00')
+        total_reservado = totales.get('total_reservado') or Decimal('0.00')
+        total_ejecutado = totales.get('total_ejecutado') or Decimal('0.00')
+        total_disponible = (total_inicial + total_modificado) - (total_reservado + total_ejecutado)
+
+        presupuesto_resumen = {
+            'anio': presupuesto_activo.anio,
+            'total_inicial': total_inicial,
+            'total_modificado': total_modificado,
+            'total_reservado': total_reservado,
+            'total_ejecutado': total_ejecutado,
+            'total_disponible': total_disponible,
+        }
+
+        renglones_resumen = list(
+            renglones_qs.values(
+                'codigo_renglon',
+                'descripcion',
+                'monto_inicial',
+                'monto_modificado',
+                'monto_reservado',
+                'monto_ejecutado',
+                'disponible',
+            )
+        )
 
     context = {
-        'solicitudes_por_anio': list(solicitudes_por_anio),
-        'solicitudes_por_mes': list(solicitudes_por_mes),
-        'anio_actual': anio_actual,
-        'anios': anios_list,  # Pasamos la lista de años disponibles
+        'solicitudes_estado_json': json.dumps(solicitudes_estado),
+        'solicitudes_anio_json': json.dumps(solicitudes_anio),
+        'solicitudes_departamento_json': json.dumps(solicitudes_departamento),
+        'presupuesto_resumen': presupuesto_resumen,
+        'renglones_resumen_json': json.dumps(renglones_resumen, default=str),
     }
 
-    return render(request, 'scompras/dahsboard.html', context)
+    return render(request, 'scompras/dashboard_admin.html', context)
 
 
 from django.db.models import Count
@@ -813,55 +1249,35 @@ from django.db.models.functions import ExtractYear, ExtractMonth
 from datetime import date
 
 @login_required
-def dashboard_usuario(request):
-    user = request.user
+@grupo_requerido('scompras')
+def dashboard_scompras(request):
+    """Dashboard operativo para usuarios de compras sin mostrar cifras presupuestarias."""
 
     asignacion = (
         UsuarioDepartamento.objects
-        .filter(usuario=user)
+        .filter(usuario=request.user)
         .select_related('seccion', 'departamento')
         .first()
     )
 
     if not asignacion or not asignacion.seccion:
-        return render(request, 'scompras/sin_seccion.html', {
-            'mensaje': 'No tienes asignada ninguna sección.'
-        })
+        messages.warning(request, 'No tienes una sección asignada, no es posible calcular tus métricas.')
+        return render(request, 'scompras/sin_seccion.html', {'mensaje': 'No tienes asignada ninguna sección.'})
 
-    seccion = asignacion.seccion
-
-    # 🔹 Agrupar solicitudes por año y mes (una sola consulta)
-    solicitudes_por_anio_mes = (
-        SolicitudCompra.objects
-        .filter(seccion=seccion)
-        .annotate(
-            anio=ExtractYear('fecha_solicitud'),
-            mes=ExtractMonth('fecha_solicitud')
-        )
-        .values('anio', 'mes')
-        .annotate(total=Count('id'))
-        .order_by('anio', 'mes')
+    solicitudes_qs = SolicitudCompra.objects.filter(seccion=asignacion.seccion)
+    total_solicitudes = solicitudes_qs.count()
+    solicitudes_estado = list(
+        solicitudes_qs.values('estado').annotate(total=Count('id')).order_by('estado')
     )
-
-    # 🔹 Años disponibles (por si quieres filtros o mostrar en el dashboard)
-    anios_disponibles = (
-        SolicitudCompra.objects
-        .filter(seccion=seccion)
-        .annotate(anio=ExtractYear('fecha_solicitud'))
-        .values('anio')
-        .distinct()
-        .order_by('anio')
-    )
-    anios_list = [a['anio'] for a in anios_disponibles]
 
     context = {
-        'seccion': seccion,
+        'seccion': asignacion.seccion,
         'departamento': asignacion.departamento,
-        'solicitudes_por_anio_mes': list(solicitudes_por_anio_mes),
-        'anios': anios_list,
+        'total_solicitudes': total_solicitudes,
+        'solicitudes_estado_json': json.dumps(solicitudes_estado),
     }
 
-    return render(request, 'scompras/dashboard_usuario.html', context)
+    return render(request, 'scompras/dashboard_scompras.html', context)
 
 
 
