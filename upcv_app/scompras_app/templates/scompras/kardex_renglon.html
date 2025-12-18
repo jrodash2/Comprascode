@@ -45,6 +45,7 @@
                 <th class="text-end">Monto</th>
                 <th class="text-end">Saldo anterior</th>
                 <th class="text-end">Saldo nuevo</th>
+                <th>Solicitud</th>
                 <th>Referencia</th>
               </tr>
             </thead>
@@ -56,11 +57,20 @@
                   <td class="text-end">{{ movimiento.monto }}</td>
                   <td class="text-end">{{ movimiento.saldo_anterior }}</td>
                   <td class="text-end">{{ movimiento.saldo_nuevo }}</td>
+                  <td>
+                    {% if movimiento.solicitud %}
+                      <a href="{% url 'scompras:detalle_solicitud' movimiento.solicitud.id %}">
+                        Solicitud {{ movimiento.solicitud.codigo_correlativo|default:movimiento.solicitud.id }}
+                      </a>
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
                   <td>{{ movimiento.referencia|default:'-' }}</td>
                 </tr>
               {% empty %}
                 <tr>
-                  <td colspan="6" class="text-center text-muted">No hay movimientos registrados.</td>
+                  <td colspan="7" class="text-center text-muted">No hay movimientos registrados.</td>
                 </tr>
               {% endfor %}
             </tbody>

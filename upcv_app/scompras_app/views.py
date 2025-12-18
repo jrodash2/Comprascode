@@ -50,7 +50,6 @@ from .models import (
     CDP,
     CDO,
     PresupuestoRenglon,
-    KardexPresupuesto,
     PresupuestoAnual,
 )
 from django.views.generic import CreateView
@@ -591,7 +590,7 @@ def kardex_renglon(request, renglon_id):
     renglon = get_object_or_404(
         PresupuestoRenglon.objects.select_related('presupuesto_anual'), pk=renglon_id
     )
-    movimientos = renglon.kardex.all()
+    movimientos = renglon.kardex.select_related('solicitud').order_by('fecha', 'id')
     tipo = request.GET.get('tipo')
     if tipo:
         movimientos = movimientos.filter(tipo=tipo)
@@ -629,8 +628,29 @@ class SolicitudCompraDetailView(DetailView):
         context['ultima_fecha_insumo'] = FechaInsumo.objects.last()
         context['productos'] = Producto.objects.filter(activo=True)
         context['subproductos'] = Subproducto.objects.filter(activo=True)
-        context['cdps'] = solicitud.cdps.select_related('renglon', 'renglon__presupuesto_anual').all()
-        context['tiene_cdo'] = solicitud.cdps.filter(cdo__isnull=False).exists()
+        cdps = solicitud.cdps.select_related('renglon', 'renglon__presupuesto_anual', 'cdo').all()
+        context['cdps'] = cdps
+        context['tiene_cdo'] = cdps.filter(cdo__isnull=False).exists()
+
+        if cdps:
+            cdp_principal = cdps.first()
+            context['cdp_principal'] = cdp_principal
+            total_cdp = cdps.aggregate(total=Sum('monto'))['total'] or Decimal('0.00')
+            if cdps.filter(estado=CDP.Estado.EJECUTADO).exists():
+                estado_resumen = CDP.Estado.EJECUTADO
+            elif cdps.filter(estado=CDP.Estado.RESERVADO).exists():
+                estado_resumen = CDP.Estado.RESERVADO
+            elif cdps.filter(estado=CDP.Estado.LIBERADO).exists():
+                estado_resumen = CDP.Estado.LIBERADO
+            else:
+                estado_resumen = None
+            context['cdp_resumen'] = {
+                'id': cdp_principal.id,
+                'estado': estado_resumen,
+                'estado_display': dict(CDP.Estado.choices).get(estado_resumen, 'Sin estado'),
+                'monto_total': total_cdp,
+            }
+            context['cdp_reservado_para_accion'] = cdps.filter(estado=CDP.Estado.RESERVADO).first()
 
         usuario_puede_presupuesto = (
             self.request.user.is_superuser

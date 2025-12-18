@@ -304,9 +304,10 @@ class PresupuestoRenglon(models.Model):
                 'Carga inicial de presupuesto'
             )
 
-    def _registrar_kardex(self, tipo, monto, saldo_anterior, referencia):
+    def _registrar_kardex(self, tipo, monto, saldo_anterior, referencia, solicitud=None):
         KardexPresupuesto.objects.create(
             presupuesto_renglon=self,
+            solicitud=solicitud,
             tipo=tipo,
             monto=monto,
             saldo_anterior=saldo_anterior,
@@ -314,7 +315,7 @@ class PresupuestoRenglon(models.Model):
             referencia=referencia,
         )
 
-    def reservar_monto(self, monto, referencia):
+    def reservar_monto(self, monto, referencia, solicitud=None):
         if monto <= 0:
             raise ValidationError('El monto a reservar debe ser mayor que cero.')
         with transaction.atomic():
@@ -329,11 +330,12 @@ class PresupuestoRenglon(models.Model):
                 KardexPresupuesto.TipoMovimiento.RESERVA_CDP,
                 monto,
                 saldo_anterior,
-                referencia
+                referencia,
+                solicitud=solicitud,
             )
         self.refresh_from_db()
 
-    def liberar_reserva(self, monto, referencia):
+    def liberar_reserva(self, monto, referencia, solicitud=None):
         if monto <= 0:
             raise ValidationError('El monto a liberar debe ser mayor que cero.')
         with transaction.atomic():
@@ -348,11 +350,12 @@ class PresupuestoRenglon(models.Model):
                 KardexPresupuesto.TipoMovimiento.LIBERACION_CDP,
                 monto,
                 saldo_anterior,
-                referencia
+                referencia,
+                solicitud=solicitud,
             )
         self.refresh_from_db()
 
-    def ejecutar_monto(self, monto, referencia):
+    def ejecutar_monto(self, monto, referencia, solicitud=None):
         if monto <= 0:
             raise ValidationError('El monto a ejecutar debe ser mayor que cero.')
         with transaction.atomic():
@@ -368,7 +371,8 @@ class PresupuestoRenglon(models.Model):
                 KardexPresupuesto.TipoMovimiento.EJECUCION_CDP,
                 monto,
                 saldo_anterior,
-                referencia
+                referencia,
+                solicitud=solicitud,
             )
         self.refresh_from_db()
 
@@ -383,6 +387,14 @@ class KardexPresupuesto(models.Model):
         EJECUCION_CDP = 'EJECUCION_CDP', 'Ejecución presupuestaria'
 
     presupuesto_renglon = models.ForeignKey(PresupuestoRenglon, on_delete=models.CASCADE, related_name='kardex')
+    solicitud = models.ForeignKey(
+        'SolicitudCompra',
+        on_delete=models.PROTECT,
+        related_name='movimientos_kardex',
+        null=True,
+        blank=True,
+        help_text='Referencia contable a la solicitud de compra vinculada (si aplica)'
+    )
     fecha = models.DateTimeField(auto_now_add=True)
     tipo = models.CharField(max_length=50, choices=TipoMovimiento.choices)
     monto = models.DecimalField(max_digits=14, decimal_places=2)
@@ -457,7 +469,11 @@ class CDP(models.Model):
             self.estado = CDP.Estado.RESERVADO
             self.full_clean()
             super().save(*args, **kwargs)
-            self.renglon.reservar_monto(self.monto, referencia=f'CDP #{self.pk} - Reserva')
+            self.renglon.reservar_monto(
+                self.monto,
+                referencia=f'CDP #{self.pk} | Solicitud {self.solicitud.codigo_correlativo or self.solicitud_id} - Reserva',
+                solicitud=self.solicitud,
+            )
         return self
 
     def _actualizar_estado(self, nuevo_estado):
@@ -470,7 +486,11 @@ class CDP(models.Model):
         if not self.renglon.presupuesto_anual.activo:
             raise ValidationError('Solo se pueden liberar CDP pertenecientes al presupuesto activo.')
         with transaction.atomic():
-            self.renglon.liberar_reserva(self.monto, referencia=f'CDP #{self.pk} - Liberación')
+            self.renglon.liberar_reserva(
+                self.monto,
+                referencia=f'CDP #{self.pk} | Solicitud {self.solicitud.codigo_correlativo or self.solicitud_id} - Liberación',
+                solicitud=self.solicitud,
+            )
             self._actualizar_estado(CDP.Estado.LIBERADO)
 
     def ejecutar(self):
@@ -479,7 +499,11 @@ class CDP(models.Model):
         if not self.renglon.presupuesto_anual.activo:
             raise ValidationError('Solo se pueden ejecutar CDP pertenecientes al presupuesto activo.')
         with transaction.atomic():
-            self.renglon.ejecutar_monto(self.monto, referencia=f'CDP #{self.pk} - Ejecución')
+            self.renglon.ejecutar_monto(
+                self.monto,
+                referencia=f'CDP #{self.pk} | Solicitud {self.solicitud.codigo_correlativo or self.solicitud_id} - Ejecución',
+                solicitud=self.solicitud,
+            )
             cdo = CDO.objects.create(cdp=self, monto=self.monto)
             self._actualizar_estado(CDP.Estado.EJECUTADO)
             return cdo
@@ -568,13 +592,13 @@ class TransferenciaPresupuestaria(models.Model):
                 KardexPresupuesto.TipoMovimiento.TRANSFERENCIA_SALIDA,
                 self.monto,
                 saldo_origen_antes,
-                f'Transferencia #{self.pk} hacia {destino.codigo_renglon}'
+                f'Transferencia #{self.pk} hacia {destino.codigo_renglon}',
             )
             destino._registrar_kardex(
                 KardexPresupuesto.TipoMovimiento.TRANSFERENCIA_ENTRADA,
                 self.monto,
                 saldo_destino_antes,
-                f'Transferencia #{self.pk} desde {origen.codigo_renglon}'
+                f'Transferencia #{self.pk} desde {origen.codigo_renglon}',
             )
         return self
     
