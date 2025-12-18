@@ -10,6 +10,9 @@
         <p class="text-muted mb-0">Detalle de renglones y saldos.</p>
       </div>
       <div class="d-flex gap-2 align-items-center">
+        {% if es_admin and presupuesto.activo %}
+          <a class="btn btn-outline-primary" href="{% url 'scompras:transferencia_crear' %}">Nueva transferencia</a>
+        {% endif %}
         {% if presupuesto.activo %}
           <span class="badge bg-success">Presupuesto activo</span>
         {% else %}
@@ -109,6 +112,9 @@
                     <th class="text-end">Disponible</th>
                     <th class="text-end">Reservado</th>
                     <th class="text-end">Ejecutado</th>
+                    {% if es_admin and presupuesto.activo %}
+                      <th class="text-end">Transferir</th>
+                    {% endif %}
                     <th class="text-end">Kardex</th>
                   </tr>
                 </thead>
@@ -120,6 +126,11 @@
                       <td class="text-end">{{ renglon.monto_disponible }}</td>
                       <td class="text-end">{{ renglon.monto_reservado }}</td>
                       <td class="text-end">{{ renglon.monto_ejecutado }}</td>
+                      {% if es_admin and presupuesto.activo %}
+                        <td class="text-end">
+                          <a class="btn btn-sm btn-outline-primary" href="{% url 'scompras:transferencia_crear' %}?origen={{ renglon.id }}">Transferir</a>
+                        </td>
+                      {% endif %}
                       <td class="text-end">
                         <a class="btn btn-sm btn-outline-secondary" href="{% url 'scompras:kardex_renglon' renglon.id %}">Ver kardex</a>
                       </td>

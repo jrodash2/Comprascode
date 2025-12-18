@@ -538,6 +538,8 @@ def presupuesto_anual_crear(request):
 @grupo_requerido('Administrador', 'scompras')
 def presupuesto_anual_detalle(request, presupuesto_id):
     presupuesto = get_object_or_404(PresupuestoAnual.objects.prefetch_related('renglones'), pk=presupuesto_id)
+    user = request.user
+    es_admin = user.is_superuser or user.groups.filter(name='Administrador').exists()
     renglones = presupuesto.renglones.all()
 
     if request.method == 'POST':
@@ -576,6 +578,7 @@ def presupuesto_anual_detalle(request, presupuesto_id):
             'renglones': renglones,
             'form': form,
             'resumen': resumen,
+            'es_admin': es_admin,
         },
     )
 
@@ -611,6 +614,17 @@ def transferencia_crear(request):
         messages.error(request, 'No hay presupuesto activo. Active un presupuesto para crear transferencias.')
         return redirect('scompras:presupuesto_anual_list')
 
+    origen_param = request.GET.get('origen')
+    origen_inicial = None
+    if origen_param:
+        try:
+            origen_inicial = PresupuestoRenglon.objects.get(pk=origen_param)
+            if origen_inicial.presupuesto_anual_id != presupuesto_activo.id:
+                messages.warning(request, 'Solo se pueden transferir renglones del presupuesto activo.')
+                origen_inicial = None
+        except PresupuestoRenglon.DoesNotExist:
+            messages.warning(request, 'El renglón origen indicado no existe o no pertenece al presupuesto activo.')
+
     if request.method == 'POST':
         form = TransferenciaPresupuestariaForm(request.POST, presupuesto_activo=presupuesto_activo)
         if form.is_valid():
@@ -620,9 +634,12 @@ def transferencia_crear(request):
                 form.add_error(None, exc)
             else:
                 messages.success(request, 'Transferencia realizada y registrada en el kardex.')
-                return redirect('scompras:transferencias_list')
+                return redirect('scompras:presupuesto_anual_detalle', presupuesto_id=presupuesto_activo.id)
     else:
-        form = TransferenciaPresupuestariaForm(presupuesto_activo=presupuesto_activo)
+        initial = {}
+        if origen_inicial:
+            initial['renglon_origen'] = origen_inicial
+        form = TransferenciaPresupuestariaForm(presupuesto_activo=presupuesto_activo, initial=initial)
 
     return render(
         request,
