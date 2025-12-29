@@ -52,6 +52,7 @@ from .models import (
     CDO,
     PresupuestoRenglon,
     PresupuestoAnual,
+    KardexPresupuesto,
     TransferenciaPresupuestaria,
 )
 from django.views.generic import CreateView
