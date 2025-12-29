@@ -60,6 +60,7 @@ urlpatterns = [
     path('solicitud/<int:solicitud_id>/cdp/nuevo/', views.crear_cdp_solicitud, name='crear_cdp_solicitud'),
     path('cdp/<int:cdp_id>/ejecutar/', views.ejecutar_cdp, name='ejecutar_cdp'),
     path('cdp/<int:cdp_id>/liberar/', views.liberar_cdp, name='liberar_cdp'),
+    path('solicitudes/<int:solicitud_id>/cdp/liberar-todos/', views.liberar_cdps_solicitud, name='liberar_cdps_solicitud'),
     path('solicitud/eliminar_insumo/<int:detalle_id>/', views.eliminar_detalle_solicitud, name='eliminar_detalle_solicitud'),
     path('editar-solicitud/', views.editar_solicitud, name='editar_solicitud'),
     path('subproductos/<int:producto_id>/', views.obtener_subproductos, name='obtener_subproductos'),

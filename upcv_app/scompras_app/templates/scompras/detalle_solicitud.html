@@ -156,11 +156,17 @@
                       <p class="mb-1 fw-semibold">CDP #{{ cdp_resumen.id }}</p>
                       <p class="mb-1">Estado: <span class="badge bg-info text-dark">{{ cdp_resumen.estado_display }}</span></p>
                       <p class="mb-0">Monto total: <strong>{{ cdp_resumen.monto_total }}</strong></p>
+                      {% if cdp_totales %}
+                        <p class="mb-0 text-muted small">Reservado: {{ cdp_totales.total_reservado }} | Ejecutado: {{ cdp_totales.total_ejecutado }}</p>
+                      {% endif %}
                     </div>
                     <div class="text-end">
                       {% if cdp_reservado_para_accion and puede_gestionar_cdp and cdp_reservado_para_accion.renglon.presupuesto_anual.activo and es_admin %}
                         <a class="btn btn-success btn-sm" href="{% url 'scompras:ejecutar_cdp' cdp_reservado_para_accion.id %}">Ejecutar CDO</a>
                         <a class="btn btn-warning btn-sm" href="{% url 'scompras:liberar_cdp' cdp_reservado_para_accion.id %}">Liberar CDP</a>
+                        {% if mostrar_liberar_todos %}
+                          <a class="btn btn-outline-danger btn-sm mt-2" href="{% url 'scompras:liberar_cdps_solicitud' solicitud.id %}">Liberar todos los CDP reservados</a>
+                        {% endif %}
                       {% elif es_scompras %}
                         <span class="text-muted">Visualización informativa.</span>
                       {% elif cdp_resumen.estado == 'RESERVADO' and not presupuesto_activo %}

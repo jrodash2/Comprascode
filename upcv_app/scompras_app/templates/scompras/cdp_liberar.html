@@ -19,6 +19,11 @@
             <h5 class="mb-0">Confirmación de liberación</h5>
           </div>
           <div class="card-body">
+            {% if cdps_ejecutados %}
+              <div class="alert alert-warning">
+                Esta solicitud tiene CDP ejecutados; solo los CDP en estado <strong>Reservado</strong> pueden liberarse.
+              </div>
+            {% endif %}
             <form method="post" novalidate>
               {% csrf_token %}
               <div class="alert alert-warning">
@@ -43,7 +48,7 @@
       </div>
 
       <div class="col-lg-6">
-        <div class="card">
+        <div class="card mb-3">
           <div class="card-header">
             <h5 class="mb-0">Estado presupuestario</h5>
           </div>
@@ -62,6 +67,69 @@
                 <span class="badge bg-success rounded-pill">{{ cdp.renglon.monto_disponible }}</span>
               </li>
             </ul>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">CDP de la solicitud</h5>
+            <small class="text-muted">Navega para liberar otros CDP reservados</small>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Renglón</th>
+                    <th class="text-end">Monto</th>
+                    <th class="text-end">Reservado renglón</th>
+                    <th class="text-end">Disponible renglón</th>
+                    <th>Estado</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in cdps_solicitud %}
+                    <tr>
+                      <td>{{ item.id }}</td>
+                      <td>{{ item.renglon.codigo_renglon }}</td>
+                      <td class="text-end">{{ item.monto }}</td>
+                      <td class="text-end">{{ item.monto_reservado_renglon }}</td>
+                      <td class="text-end">{{ item.monto_disponible_renglon }}</td>
+                      <td>
+                        {% if item.estado == 'RESERVADO' %}
+                          <span class="badge bg-info text-dark">Reservado</span>
+                        {% elif item.estado == 'EJECUTADO' %}
+                          <span class="badge bg-success">Ejecutado</span>
+                        {% else %}
+                          <span class="badge bg-secondary">Liberado</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-end">
+                        {% if item.estado == 'RESERVADO' and item.id != cdp.id %}
+                          <a class="btn btn-outline-warning btn-sm" href="{% url 'scompras:liberar_cdp' item.id %}">Liberar</a>
+                        {% elif item.id == cdp.id %}
+                          <span class="text-muted">Actual</span>
+                        {% else %}
+                          <span class="text-muted">Sin acción</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="7" class="text-center text-muted">No hay CDP asociados.</td></tr>
+                  {% endfor %}
+                </tbody>
+                <tfoot>
+                  <tr class="fw-semibold">
+                    <td colspan="2">Totales solicitud</td>
+                    <td class="text-end">{{ totales_solicitud.total_reservado }}</td>
+                    <td class="text-end" colspan="2">Ejecutado: {{ totales_solicitud.total_ejecutado }}</td>
+                    <td colspan="2"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
         </div>
       </div>

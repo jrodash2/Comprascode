@@ -32,6 +32,7 @@ from .form import (
     PresupuestoAnualForm,
     EjecutarCDPForm,
     LiberarCDPForm,
+    LiberarCDPSolicitudForm,
     TransferenciaPresupuestariaForm,
 )
 from .models import (
@@ -52,8 +53,8 @@ from .models import (
     CDO,
     PresupuestoRenglon,
     PresupuestoAnual,
-    KardexPresupuesto,
     TransferenciaPresupuestaria,
+    KardexPresupuesto,
 )
 from django.views.generic import CreateView
 from django.views.generic import ListView
@@ -715,6 +716,8 @@ class SolicitudCompraDetailView(DetailView):
         cdps = solicitud.cdps.select_related('renglon', 'renglon__presupuesto_anual', 'cdo').all()
         context['cdps'] = cdps
         context['tiene_cdo'] = cdps.filter(cdo__isnull=False).exists()
+        context['cdps_reservados'] = cdps.filter(estado=CDP.Estado.RESERVADO)
+        context['cdps_ejecutados'] = cdps.filter(estado=CDP.Estado.EJECUTADO)
 
         if cdps:
             cdp_principal = cdps.first()
@@ -735,6 +738,12 @@ class SolicitudCompraDetailView(DetailView):
                 'monto_total': total_cdp,
             }
             context['cdp_reservado_para_accion'] = cdps.filter(estado=CDP.Estado.RESERVADO).first()
+            context['cdp_totales'] = {
+                'total_reservado': cdps.aggregate(total=Sum('monto', filter=Q(estado=CDP.Estado.RESERVADO)))['total']
+                or Decimal('0.00'),
+                'total_ejecutado': cdps.aggregate(total=Sum('monto', filter=Q(estado=CDP.Estado.EJECUTADO)))['total']
+                or Decimal('0.00'),
+            }
 
         usuario_puede_presupuesto = (
             es_admin
@@ -755,6 +764,11 @@ class SolicitudCompraDetailView(DetailView):
         context['es_admin'] = es_admin
         context['es_scompras'] = es_scompras
         context['mostrar_acciones_solicitud'] = not (estado_finalizada or estado_rechazada)
+        context['mostrar_liberar_todos'] = (
+            es_admin
+            and not context['tiene_cdo']
+            and context['cdps_reservados'].exists()
+        )
 
         return context
 
@@ -862,6 +876,27 @@ def liberar_cdp(request, cdp_id):
         messages.error(request, 'Solo los CDP en estado Reservado pueden liberarse.')
         return redirect('scompras:detalle_solicitud', pk=cdp.solicitud_id)
 
+    # Contexto ampliado de la solicitud y sus CDP para dar trazabilidad al usuario
+    cdps_solicitud = (
+        cdp.solicitud.cdps.select_related('renglon', 'renglon__presupuesto_anual')
+        .annotate(
+            monto_reservado_renglon=F('renglon__monto_reservado'),
+            monto_disponible_renglon=F('renglon__monto_inicial')
+            + F('renglon__monto_modificado')
+            - F('renglon__monto_reservado')
+            - F('renglon__monto_ejecutado'),
+        )
+        .order_by('id')
+    )
+    cdps_reservados = [c for c in cdps_solicitud if c.estado == CDP.Estado.RESERVADO]
+    cdps_ejecutados = [c for c in cdps_solicitud if c.estado == CDP.Estado.EJECUTADO]
+    cdps_liberados = [c for c in cdps_solicitud if c.estado == CDP.Estado.LIBERADO]
+
+    totales_solicitud = cdps_solicitud.aggregate(
+        total_reservado=Coalesce(Sum('monto', filter=Q(estado=CDP.Estado.RESERVADO)), Decimal('0.00')),
+        total_ejecutado=Coalesce(Sum('monto', filter=Q(estado=CDP.Estado.EJECUTADO)), Decimal('0.00')),
+    )
+
     if request.method == 'POST':
         form = LiberarCDPForm(cdp, request.POST)
         if form.is_valid():
@@ -881,6 +916,66 @@ def liberar_cdp(request, cdp_id):
         {
             'form': form,
             'cdp': cdp,
+            'cdps_solicitud': cdps_solicitud,
+            'cdps_reservados': cdps_reservados,
+            'cdps_ejecutados': cdps_ejecutados,
+            'cdps_liberados': cdps_liberados,
+            'totales_solicitud': totales_solicitud,
+        },
+    )
+
+
+@login_required
+@grupo_requerido('Administrador')
+def liberar_cdps_solicitud(request, solicitud_id):
+    solicitud = get_object_or_404(SolicitudCompra, pk=solicitud_id)
+    presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+
+    if not presupuesto_activo:
+        messages.error(request, 'No hay presupuesto activo. Active un presupuesto anual antes de liberar CDP.')
+        return redirect('scompras:detalle_solicitud', pk=solicitud.id)
+
+    cdps_solicitud = solicitud.cdps.select_related('renglon', 'renglon__presupuesto_anual').order_by('id')
+    cdps_ejecutados = cdps_solicitud.filter(estado=CDP.Estado.EJECUTADO)
+    cdps_reservados = cdps_solicitud.filter(estado=CDP.Estado.RESERVADO)
+
+    if cdps_ejecutados.exists():
+        messages.error(request, 'La solicitud tiene CDP ejecutados; no es posible liberar todos en bloque.')
+        return redirect('scompras:detalle_solicitud', pk=solicitud.id)
+
+    if not cdps_reservados.exists():
+        messages.info(request, 'La solicitud no tiene CDP en estado Reservado para liberar.')
+        return redirect('scompras:detalle_solicitud', pk=solicitud.id)
+
+    totales_solicitud = cdps_solicitud.aggregate(
+        total_reservado=Coalesce(Sum('monto', filter=Q(estado=CDP.Estado.RESERVADO)), Decimal('0.00')),
+        total_ejecutado=Coalesce(Sum('monto', filter=Q(estado=CDP.Estado.EJECUTADO)), Decimal('0.00')),
+    )
+
+    if request.method == 'POST':
+        form = LiberarCDPSolicitudForm(request.POST)
+        if form.is_valid():
+            try:
+                with transaction.atomic():
+                    for cdp in cdps_reservados.select_for_update():
+                        cdp.liberar()
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, 'Todos los CDP reservados de la solicitud fueron liberados correctamente.')
+                return redirect('scompras:detalle_solicitud', pk=solicitud.id)
+    else:
+        form = LiberarCDPSolicitudForm()
+
+    return render(
+        request,
+        'scompras/cdp_liberar_todos.html',
+        {
+            'solicitud': solicitud,
+            'form': form,
+            'cdps_reservados': cdps_reservados,
+            'totales_solicitud': totales_solicitud,
+            'presupuesto_activo': presupuesto_activo,
         },
     )
 

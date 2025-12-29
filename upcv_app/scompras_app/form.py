@@ -586,6 +586,21 @@ class LiberarCDPForm(forms.Form):
         return self.cdp
 
 
+class LiberarCDPSolicitudForm(forms.Form):
+    """Confirmación única para liberar todos los CDP reservados de una solicitud."""
+
+    confirmar = forms.BooleanField(
+        required=True,
+        label='Confirmo liberar todos los CDP reservados de la solicitud',
+        help_text='Esta acción devolverá al disponible cada monto reservado.',
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            css_class = 'form-control' if not isinstance(field.widget, forms.CheckboxInput) else 'form-check-input'
+            field.widget.attrs['class'] = field.widget.attrs.get('class', '') + f' {css_class}'
+
 class TransferenciaPresupuestariaForm(forms.ModelForm):
     """Formulario para transferir entre renglones del presupuesto activo."""
 
