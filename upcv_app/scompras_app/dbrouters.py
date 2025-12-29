@@ -13,7 +13,8 @@ class TicketsRouter:
         return None  # Solo lectura
 
     def allow_relation(self, obj1, obj2, **hints):
-        return None
+        # 🔥 Permitir relaciones entre objetos
+        return True
 
     def allow_migrate(self, db, app_label, model_name=None, **hints):
         if app_label in self.route_app_labels:
