@@ -1,0 +1,74 @@
+{% extends 'scompras/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="page-body">
+  <div class="content-wrapper">
+    <div class="page-title flex-between">
+      <div>
+        <h4>Ejecutar CDP #{{ cdp.id }}</h4>
+        <p class="text-muted">Solicitud {{ cdp.solicitud.codigo_correlativo }} - {{ cdp.renglon.codigo_renglon }} ({{ cdp.renglon.presupuesto_anual.anio }})</p>
+      </div>
+      <a class="action-link" href="{% url 'scompras:detalle_solicitud' cdp.solicitud.id %}">Volver al detalle</a>
+    </div>
+
+    <section class="panel-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <h5>Confirmación de ejecución</h5>
+        </div>
+        <div class="panel-body">
+          <form method="post" class="form-vertical" novalidate>
+            {% csrf_token %}
+            <div class="form-field">
+              <label>Monto a ejecutar</label>
+              {{ form.monto }}
+            </div>
+            <div class="form-field checkbox">
+              {{ form.confirmar }}
+              <label>{{ form.confirmar.label }}</label>
+              <div class="helper-text">{{ form.confirmar.help_text }}</div>
+              {% if form.confirmar.errors %}
+                <div class="form-error">{{ form.confirmar.errors|striptags }}</div>
+              {% endif %}
+            </div>
+            {% if form.non_field_errors %}
+              <div class="notice error">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <div class="actions">
+              <button type="submit" class="action-button primary">Ejecutar y generar CDO</button>
+              <a class="action-link" href="{% url 'scompras:detalle_solicitud' cdp.solicitud.id %}">Cancelar</a>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h5>Estado presupuestario</h5>
+        </div>
+        <div class="panel-body">
+          <ul class="status-list">
+            <li>
+              <span>Reservado en este CDP</span>
+              <span class="badge primary">{{ cdp.monto }}</span>
+            </li>
+            <li>
+              <span>Reservado total renglón</span>
+              <span class="badge neutral">{{ cdp.renglon.monto_reservado }}</span>
+            </li>
+            <li>
+              <span>Ejecutado total renglón</span>
+              <span class="badge info">{{ cdp.renglon.monto_ejecutado }}</span>
+            </li>
+            <li>
+              <span>Disponible renglón</span>
+              <span class="badge success">{{ cdp.renglon.monto_disponible }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends 'scompras/base.html' %}
+
+{% block content %}
+<div class="page-body">
+  <div class="content-wrapper">
+    <section class="panel">
+      <div class="panel-header flex-between">
+        <h5>Nueva transferencia presupuestaria</h5>
+        <a class="action-link" href="{% url 'scompras:transferencias_list' %}">Volver</a>
+      </div>
+      <div class="panel-body">
+        <p class="text-muted">Presupuesto activo: {{ presupuesto_activo }}</p>
+        <form method="post" class="form-vertical" novalidate>
+          {% csrf_token %}
+          {% for field in form %}
+            <div class="form-field">
+              <label for="id_{{ field.name }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}
+                <div class="helper-text">{{ field.help_text }}</div>
+              {% endif %}
+              {% for error in field.errors %}
+                <div class="form-error">{{ error }}</div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+          {% if form.non_field_errors %}
+            <div class="notice error">
+              {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+          <div class="actions end">
+            <button type="submit" class="action-button primary">Guardar transferencia</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

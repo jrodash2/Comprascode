@@ -1,0 +1,85 @@
+{% extends 'scompras/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="page-body">
+  <div class="content-wrapper">
+    <div class="page-title flex-between">
+      <div>
+        <h4>Kardex del renglón {{ renglon.codigo_renglon }} ({{ renglon.presupuesto_anual.anio }})</h4>
+        <p class="text-muted">Historial contable no editable.</p>
+      </div>
+      <a class="action-link" href="{% url 'scompras:presupuesto_anual_detalle' renglon.presupuesto_anual.id %}">Volver al presupuesto</a>
+    </div>
+
+    <section class="panel">
+      <div class="panel-body">
+        <form method="get" class="filter-grid">
+          <div class="form-field">
+            <label>Filtrar por tipo</label>
+            <select name="tipo">
+              <option value="">Todos</option>
+              {% for value, label in tipos %}
+                <option value="{{ value }}" {% if value == tipo_filtrado %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="action-button primary">Filtrar</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header flex-between">
+        <h5>Movimientos</h5>
+      </div>
+      <div class="panel-body">
+        <div class="table-wrapper">
+          <table class="app-table striped">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th class="text-right">Monto</th>
+                <th class="text-right">Saldo anterior</th>
+                <th class="text-right">Saldo nuevo</th>
+                <th>Solicitud</th>
+                <th>Referencia</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for movimiento in movimientos %}
+                <tr>
+                  <td>{{ movimiento.fecha|date:'Y-m-d H:i' }}</td>
+                  <td>
+                    <span class="badge info">{{ movimiento.get_tipo_display }}</span>
+                  </td>
+                  <td class="text-right">{{ movimiento.monto }}</td>
+                  <td class="text-right">{{ movimiento.saldo_anterior }}</td>
+                  <td class="text-right">{{ movimiento.saldo_nuevo }}</td>
+                  <td>
+                    {% if movimiento.solicitud %}
+                      <a class="action-link" href="{% url 'scompras:detalle_solicitud' movimiento.solicitud.id %}">
+                        Solicitud {{ movimiento.solicitud.codigo_correlativo|default:movimiento.solicitud.id }}
+                      </a>
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                  <td>{{ movimiento.referencia|default:'-' }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="7" class="text-center text-muted">No hay movimientos registrados.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

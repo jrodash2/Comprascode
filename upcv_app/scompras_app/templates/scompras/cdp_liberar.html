@@ -1,0 +1,139 @@
+{% extends 'scompras/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="page-body">
+  <div class="content-wrapper">
+    <div class="page-title flex-between">
+      <div>
+        <h4>Liberar CDP #{{ cdp.id }}</h4>
+        <p class="text-muted">Solicitud {{ cdp.solicitud.codigo_correlativo }} - {{ cdp.renglon.codigo_renglon }} ({{ cdp.renglon.presupuesto_anual.anio }})</p>
+      </div>
+      <a class="action-link" href="{% url 'scompras:detalle_solicitud' cdp.solicitud.id %}">Volver al detalle</a>
+    </div>
+
+    <section class="panel-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <h5>Confirmación de liberación</h5>
+        </div>
+        <div class="panel-body">
+          {% if cdps_ejecutados %}
+            <div class="notice warning">
+              Esta solicitud tiene CDP ejecutados; solo los CDP en estado <strong>Reservado</strong> pueden liberarse.
+            </div>
+          {% endif %}
+          <form method="post" class="form-vertical" novalidate>
+            {% csrf_token %}
+            <div class="notice warning">
+              Esta acción devolverá {{ cdp.monto }} al disponible del renglón.
+            </div>
+            <div class="form-field checkbox">
+              {{ form.confirmar }}
+              <label>{{ form.confirmar.label }}</label>
+              <div class="helper-text">{{ form.confirmar.help_text }}</div>
+              {% if form.confirmar.errors %}
+                <div class="form-error">{{ form.confirmar.errors|striptags }}</div>
+              {% endif %}
+            </div>
+            {% if form.non_field_errors %}
+              <div class="notice error">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <div class="actions">
+              <button type="submit" class="action-button danger">Liberar reserva</button>
+              <a class="action-link" href="{% url 'scompras:detalle_solicitud' cdp.solicitud.id %}">Cancelar</a>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="panel-stack">
+        <div class="panel">
+          <div class="panel-header">
+            <h5>Estado presupuestario</h5>
+          </div>
+          <div class="panel-body">
+            <ul class="status-list">
+              <li>
+                <span>Reservado en este CDP</span>
+                <span class="badge primary">{{ cdp.monto }}</span>
+              </li>
+              <li>
+                <span>Reservado total renglón</span>
+                <span class="badge neutral">{{ cdp.renglon.monto_reservado }}</span>
+              </li>
+              <li>
+                <span>Disponible renglón</span>
+                <span class="badge success">{{ cdp.renglon.monto_disponible }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header flex-between">
+            <h5>CDP de la solicitud</h5>
+            <small class="text-muted">Navega para liberar otros CDP reservados</small>
+          </div>
+          <div class="panel-body">
+            <div class="table-wrapper">
+              <table class="app-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Renglón</th>
+                    <th class="text-right">Monto</th>
+                    <th class="text-right">Reservado renglón</th>
+                    <th class="text-right">Disponible renglón</th>
+                    <th>Estado</th>
+                    <th class="text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in cdps_solicitud %}
+                    <tr>
+                      <td>{{ item.id }}</td>
+                      <td>{{ item.renglon.codigo_renglon }}</td>
+                      <td class="text-right">{{ item.monto }}</td>
+                      <td class="text-right">{{ item.monto_reservado_renglon }}</td>
+                      <td class="text-right">{{ item.monto_disponible_renglon }}</td>
+                      <td>
+                        {% if item.estado == 'RESERVADO' %}
+                          <span class="badge info">Reservado</span>
+                        {% elif item.estado == 'EJECUTADO' %}
+                          <span class="badge success">Ejecutado</span>
+                        {% else %}
+                          <span class="badge neutral">Liberado</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-right">
+                        {% if item.estado == 'RESERVADO' and item.id != cdp.id %}
+                          <a class="action-link" href="{% url 'scompras:liberar_cdp' item.id %}">Liberar</a>
+                        {% elif item.id == cdp.id %}
+                          <span class="text-muted">Actual</span>
+                        {% else %}
+                          <span class="text-muted">Sin acción</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="7" class="text-center text-muted">No hay CDP asociados.</td></tr>
+                  {% endfor %}
+                </tbody>
+                <tfoot>
+                  <tr class="totals">
+                    <td colspan="2">Totales solicitud</td>
+                    <td class="text-right">{{ totales_solicitud.total_reservado }}</td>
+                    <td class="text-right" colspan="2">Ejecutado: {{ totales_solicitud.total_ejecutado }}</td>
+                    <td colspan="2"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends 'scompras/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="page-body">
+  <div class="content-wrapper">
+    <div class="page-title flex-between">
+      <h4>Transferencias presupuestarias</h4>
+      {% if presupuesto_activo %}
+        <a class="action-button primary" href="{% url 'scompras:transferencia_crear' %}">Nueva transferencia</a>
+      {% endif %}
+    </div>
+
+    {% if not presupuesto_activo %}
+      <div class="notice warning">No hay presupuesto activo. Active un presupuesto para gestionar transferencias.</div>
+    {% endif %}
+
+    <section class="panel">
+      <div class="panel-body">
+        <div class="table-wrapper">
+          <table class="app-table striped">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Origen</th>
+                <th>Destino</th>
+                <th class="text-right">Monto</th>
+                <th>Observación</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for transferencia in transferencias %}
+                <tr>
+                  <td>{{ transferencia.fecha|date:"d/m/Y H:i" }}</td>
+                  <td>{{ transferencia.renglon_origen.codigo_renglon }} ({{ transferencia.renglon_origen.presupuesto_anual.anio }})</td>
+                  <td>{{ transferencia.renglon_destino.codigo_renglon }} ({{ transferencia.renglon_destino.presupuesto_anual.anio }})</td>
+                  <td class="text-right">{{ transferencia.monto|floatformat:2 }}</td>
+                  <td>{{ transferencia.descripcion|default:'-' }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="5" class="text-center text-muted">No hay transferencias registradas para el presupuesto activo.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
