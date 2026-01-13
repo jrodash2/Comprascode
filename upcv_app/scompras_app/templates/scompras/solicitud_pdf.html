@@ -6,18 +6,27 @@
   <title>Solicitud de Compra</title>
 
   <style>
-    :root{
-      --page-margin: 18px;
-      --footer-h: 240px;
-    }
+    @page {
+      size: letter;
+      margin: 18px;
 
-    @page { size: letter; margin: var(--page-margin); }
+      @frame content_frame {
+        left: 18px; right: 18px;
+        top: 18px; bottom: 140px;  /* ✅ reserva espacio para el footer */
+      }
+
+      @frame footer_frame {
+        left: 18px; right: 18px;
+        bottom: 18px;
+        height: 120px;              /* ✅ alto del pie */
+        -pdf-frame-content: footer_content; /* ✅ este ID se renderiza fijo abajo */
+      }
+    }
 
     body{
       font-family: Arial, sans-serif;
       font-size: 11px;
       margin: 0;
-      padding-bottom: calc(var(--footer-h) + 10px);
       color:#111;
     }
 
@@ -34,7 +43,7 @@
       white-space:nowrap;
     }
     .logos img{
-      height:78px;    /* no se deforma */
+      height:78px;
       width:auto;
       margin-right:8px;
       vertical-align:middle;
@@ -55,18 +64,50 @@
     }
     .titlebox p{ margin:0; line-height:1.25; }
 
-    .info{
-      width:100%;
-      border-collapse:collapse;
-      margin-bottom:8px;
-    }
-    .info td{
-      border:1px solid #444;
-      padding:6px 8px;
-      font-size:10px;
-      line-height:1.25;
-      vertical-align:top;
-    }
+  .info{
+  width:100%;
+  border-collapse:collapse;
+  margin-bottom:10px;
+  table-layout:fixed;
+}
+
+.info td{
+  border:1px solid #444;
+  padding:7px 10px;
+  font-size:10px;
+  line-height:1.35;
+  vertical-align:top;
+}
+
+.info .box-title{
+  display:block;
+  font-weight:bold;
+  font-size:9px;
+  text-transform:uppercase;
+  letter-spacing:.3px;
+  color:#111;
+  margin-bottom:4px;
+  padding:3px 6px;
+  border:1px solid #bbb;
+  background:#f3f3f3;
+}
+
+.info .row{
+  margin:0;
+  padding:0;
+}
+
+.info .label{
+  font-weight:bold;
+  display:inline-block;
+  width:78px;            /* ancho fijo para alinear */
+  color:#222;
+}
+
+.info .value{
+  color:#111;
+}
+
     .label{ font-weight:bold; display:inline-block; width:74px; }
 
     /* ====== TEXTO + TABLA ====== */
@@ -81,21 +122,34 @@
       font-weight:bold;
       margin:8px 0 4px;
     }
+.table{
+  width:100%;
+  border-collapse:collapse;
+  table-layout:fixed;
+}
 
-    .table{
-      width:100%;
-      border-collapse:collapse;
-      table-layout:fixed;
-    }
-    .table th, .table td{
-      border:1px solid #999;
-      padding:4px 5px;
-      font-size:9px;
-      line-height:1.2;
-      vertical-align:top;
-      word-break: break-word;
-      overflow-wrap:anywhere;
-    }
+.table th, .table td{
+  border:1px solid #999;
+  padding:4px 5px;
+  font-size:9px;
+  line-height:1.2;
+  vertical-align:top;
+
+  /* ✅ mejor compatibilidad xhtml2pdf */
+  word-wrap: break-word;
+}
+
+/* ===== Anchos POR CLASE (xhtml2pdf los respeta mejor) ===== */
+.w-cant{ width:5%;  }
+.w-reng{ width:5%;  }
+.w-cod { width:9%;  }
+.w-nom { width:12%; }
+.w-car { width:28%; }
+.w-esp { width:10%; }
+.w-pre { width:9%;  }
+.w-cup { width:12%; }
+.w-cop { width:10%; }
+
     .table th{
       background:#f2f2f2;
       text-align:center;
@@ -103,100 +157,22 @@
     }
     .center{ text-align:center; }
 
-    .force-single-page .table{
-      font-size:8px;
-    }
-    .force-single-page .table th,
-    .force-single-page .table td{
-      padding:2px 3px;
-    }
-
     /* ======================================================
-       ✅ ZONA INFERIOR: BASE FIJA (NO CAMBIES ESTO)
+       ✅ FOOTER FIJO (mover imagen con X/Y usando márgenes)
        ====================================================== */
-    .bottom-area{
-      position: fixed;
-      left: var(--page-margin);
-      right: var(--page-margin);
-      bottom: var(--page-margin);
-      height: var(--footer-h);  /* reserva de zona inferior */
-      page-break-inside: avoid;
-    }
+    #footer_content{ /* contenedor del pie */ }
 
-    /* ======================================================
-       ✅ ELEMENTOS MOVIBLES (X/Y) — CAMBIA left/top EN CADA UNO
-       ====================================================== */
-
-    /* 1) JUSTIFICACIÓN */
-    #justificacion{
-      position: absolute;
-      left: 0px;   /* 👈 X */
-      top: 0px;    /* 👈 Y */
-      right: 0px;
-      font-size:10px;
-      line-height:1.15;
+    #img-movible{
+      width: 720px;
+      height: auto;
+      margin-left: 35px; /* 👈 X */
+      margin-top: 0px;   /* 👈 Y dentro del footer (0 a ~80 aprox) */
+      display:block;
     }
-
-    /* 2) FIRMAS */
-    #firmas{
-      position: absolute;
-      left: 0px;   /* 👈 X */
-      top: 55px;   /* 👈 Y */
-      right: 0px;
-    }
-
-    .firmas{
-      width:100%;
-      border-collapse:collapse;
-    }
-    .firmas td{
-      width:33.33%;
-      text-align:center;
-      vertical-align:bottom;
-      padding:8px 6px;
-      font-size:10px;
-    }
-    .linea{
-      border-top:1px solid #222;
-      width:90%;
-      margin:0 auto 4px;
-      height:1px;
-    }
-    .nombre{
-      margin:0;
-      font-size:9px;
-      color:#444;
-      line-height:1.05;
-    }
-    .puesto{ margin:0; font-weight:bold; }
-
-    /* 3) PIE INSTITUCIONAL */
-    #pie{
-      position: absolute;
-      left: 0px;    /* 👈 X */
-      top: 160px;   /* 👈 Y */
-      right: 0px;
-      text-align:center;
-      font-size:8px;
-      line-height:1.05;
-      color:#222;
-    }
-    #pie p{ margin:0; padding:0; }
-
-    .flag{
-      width:100%;
-      border-collapse:collapse;
-      margin:3px 0 2px;
-    }
-    .flag td{ height:4px; padding:0; }
-    .b{ background:#2b5fb8; width:33.33%; }
-    .w{ background:#fff; width:33.33%; border-top:1px solid #ddd; border-bottom:1px solid #ddd; }
-
-    .strong{ font-weight:bold; }
   </style>
 </head>
 
-<body class="force-single-page">
+<body>
 
   <!-- ====== ENCABEZADO ====== -->
   <table class="hdr">
@@ -215,117 +191,97 @@
     </tr>
   </table>
 
-  <table class="info">
-    <tr>
-      <td width="34%">
-        <span class="label">Departamento:</span> {{ solicitud.seccion.departamento.nombre }}<br>
-        <span class="label">Sección:</span> {{ solicitud.seccion.nombre }}
-      </td>
-      <td width="33%">
-        <span class="label">Producto:</span> {{ solicitud.producto.nombre }}<br>
-        <span class="label">Subprod.:</span> {{ solicitud.subproducto.nombre }}
-      </td>
-      <td width="33%">
-        <span class="label">Solicita:</span> {{ solicitud.usuario.get_full_name }}<br>
-        <span class="label">Cargo:</span> {{ solicitud.usuario.perfil.cargo }}
-      </td>
-    </tr>
-  </table>
+<table class="info">
+  <tr>
+    <td width="33%">
+      <span class="box-title">Solicitante</span>
+
+      <div class="row">
+        <span class="label">Solicita:</span>
+        <span class="value">{{ solicitud.usuario.get_full_name }}</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Cargo:</span>
+        <span class="value">{{ solicitud.usuario.perfil.cargo }}</span>
+      </div>
+    </td>
+
+    <td width="34%">
+      <span class="box-title">Unidad solicitante</span>
+
+      <div class="row">
+        <span class="label">Depto.:</span>
+        <span class="value">{{ solicitud.seccion.departamento.nombre }}</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Sección:</span>
+        <span class="value">{{ solicitud.seccion.nombre }}</span>
+      </div>
+    </td>
+
+    <td width="33%">
+      <span class="box-title">Clasificación presupuestaria</span>
+
+      <div class="row">
+        <span class="label">Producto:</span>
+        <span class="value">{{ solicitud.producto.nombre }}</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Subprod.:</span>
+        <span class="value">{{ solicitud.subproducto.nombre }}</span>
+      </div>
+    </td>
+  </tr>
+</table>
+
 
   <p class="ptext">
     Por este medio se solicita al Departamento Administrativo Financiero se sirva efectuar la compra de lo que a continuación se detalla:
   </p>
+<table class="table">
+  <thead>
+    <tr>
+      <th class="w-cant">Cantidad</th>
+      <th class="w-reng">Renglón</th>
+
+      <th class="w-nom">Nombre</th>
+      <th class="w-car">Características</th>
+      <th class="w-esp">Caract.<br>Especial</th>
+      <th class="w-pre">Presentación</th>
+      <th class="w-cup">Cant. Unidad<br>Presentación</th>
+            <th class="w-cod">Código<br>Insumo</th>
+      <th class="w-cop">Código<br>Presentación</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for detalle in detalles %}
+    <tr>
+      <td class="center w-cant">{{ detalle.cantidad }}</td>
+      <td class="center w-reng">{{ detalle.renglon|default:detalle.insumo.renglon|default:"-" }}</td>
+
+      <td class="w-nom">{{ detalle.insumo.nombre }}</td>
+      <td class="w-car">{{ detalle.insumo.caracteristicas|default:"-" }}</td>
+      <td class="w-esp">{{ detalle.caracteristica_especial|default:"-" }}</td>
+      <td class="center w-pre">{{ detalle.insumo.nombre_presentacion|default:"-" }}</td>
+      <td class="center w-cup">{{ detalle.insumo.cantidad_unidad_presentacion|default:"-" }}</td>
+            <td class="center w-cod">{{ detalle.insumo.codigo_insumo }}</td>
+      <td class="center w-cop">{{ detalle.insumo.codigo_presentacion|default:"-" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 
 
-  <table class="table">
-    <colgroup>
-      <col style="width:7%">
-      <col style="width:6%">
-      <col style="width:9%">
-      <col style="width:12%">
-      <col style="width:22%">
-      <col style="width:12%">
-      <col style="width:10%">
-      <col style="width:12%">
-      <col style="width:10%">
-    </colgroup>
-    <thead>
-      <tr>
-        <th>Cantidad</th>
-        <th>Renglón</th>
-        <th>Código<br>Insumo</th>
-        <th>Nombre</th>
-        <th>Características</th>
-        <th>Caract.<br>Especial</th>
-        <th>Presentación</th>
-        <th>Cant. Unidad<br>Presentación</th>
-        <th>Código<br>Presentación</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for detalle in detalles %}
-      <tr>
-        <td class="center">{{ detalle.cantidad }}</td>
-        <td class="center">{{ detalle.renglon|default:detalle.insumo.renglon|default:"-" }}</td>
-        <td class="center">{{ detalle.insumo.codigo_insumo }}</td>
-        <td>{{ detalle.insumo.nombre }}</td>
-        <td>{{ detalle.insumo.caracteristicas|default:"-" }}</td>
-        <td>{{ detalle.caracteristica_especial|default:"-" }}</td>
-        <td class="center">{{ detalle.insumo.nombre_presentacion|default:"-" }}</td>
-        <td class="center">{{ detalle.insumo.cantidad_unidad_presentacion|default:"-" }}</td>
-        <td class="center">{{ detalle.insumo.codigo_presentacion|default:"-" }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
 
   <!-- ======================================================
-       ✅ ZONA INFERIOR FIJA (aquí se mueven por separado)
+       ✅ FOOTER FIJO ABAJO (NO se mueve con la tabla)
        ====================================================== -->
-  <div class="bottom-area">
-    <!-- 1) JUSTIFICACIÓN -->
-    <div id="justificacion">
-      <strong>Justificación:</strong> {{ solicitud.descripcion }}
-    </div>
-    <!-- 2) FIRMAS -->
-    <div id="firmas">
-      <table class="firmas">
-        <tr>
-          <td>
-            <div class="linea"></div>
-            <p class="nombre">________________________</p>
-            <p class="puesto">Solicitante</p>
-          </td>
-          <td>
-            <div class="linea"></div>
-            <p class="nombre">________________________</p>
-            <p class="puesto">Coordinador General</p>
-          </td>
-          <td>
-            <div class="linea"></div>
-            <p class="nombre">________________________</p>
-            <p class="puesto">Jefe Administrativo Financiero</p>
-          </td>
-        </tr>
-      </table>
-    </div>
-
-    <!-- 3) PIE INSTITUCIONAL -->
-    <div id="pie">
-      <p>Generado por el Sistema de Compras</p>
-
-      <table class="flag">
-        <tr>
-          <td class="b"></td>
-          <td class="w"></td>
-          <td class="b"></td>
-        </tr>
-      </table>
-
-      <p><span class="strong">Dirección:</span> {{ institucion.direccion|default:"-" }}</p>
-      <p><span class="strong">Teléfono:</span> {{ institucion.telefono|default:"-" }}</p>
-    </div>
-
+  <div id="footer_content">
+    <img id="img-movible" src="{% static 'assets/images/login/firmas.png' %}" alt="Firmas">
   </div>
 
 </body>
