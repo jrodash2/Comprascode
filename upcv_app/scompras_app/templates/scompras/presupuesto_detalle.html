@@ -36,7 +36,7 @@
             {% if not presupuesto.activo %}
               <div class="alert alert-warning">Solo el presupuesto activo permite agregar renglones.</div>
             {% endif %}
-            <form method="post" novalidate>
+            <form method="post" novalidate data-subproductos-url="{% url 'scompras:subproductos_por_producto' %}">
               {% csrf_token %}
               <div class="mb-3">
                 <label class="form-label">Producto</label>
@@ -167,4 +167,71 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+  {{ block.super }}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const productoSelect = document.getElementById('id_producto');
+      const subproductoSelect = document.getElementById('id_subproducto');
+
+      if (!productoSelect || !subproductoSelect) {
+        return;
+      }
+
+      const url = productoSelect.dataset.subproductosUrl || productoSelect.closest('form')?.dataset.subproductosUrl;
+      const initialSubproducto = subproductoSelect.value;
+
+      function resetSubproductos() {
+        subproductoSelect.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '---------';
+        subproductoSelect.appendChild(placeholder);
+      }
+
+      function cargarSubproductos(productoId, selectedId) {
+        resetSubproductos();
+        if (!productoId || !url) {
+          return;
+        }
+        fetch(`${url}?producto_id=${productoId}`)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error('Error al cargar subproductos');
+            }
+            return response.json();
+          })
+          .then((data) => {
+            const resultados = data.results || [];
+            if (resultados.length === 0) {
+              return;
+            }
+            resultados.forEach((item) => {
+              const option = document.createElement('option');
+              option.value = item.id;
+              option.textContent = item.label;
+              if (selectedId && String(item.id) === String(selectedId)) {
+                option.selected = true;
+              }
+              subproductoSelect.appendChild(option);
+            });
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      }
+
+      resetSubproductos();
+
+      if (productoSelect.value) {
+        cargarSubproductos(productoSelect.value, initialSubproducto);
+      }
+
+      productoSelect.addEventListener('change', function () {
+        cargarSubproductos(this.value, null);
+      });
+    });
+  </script>
 {% endblock %}
