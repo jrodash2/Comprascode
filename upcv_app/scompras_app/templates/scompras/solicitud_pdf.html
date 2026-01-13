@@ -6,7 +6,12 @@
   <title>Solicitud de Compra</title>
 
   <style>
-    @page { size: letter; margin: 18px; }
+    :root{
+      --page-margin: 18px;
+      --footer-h: 240px;
+    }
+
+    @page { size: letter; margin: var(--page-margin); }
 
     body{
       font-family: Arial, sans-serif;
