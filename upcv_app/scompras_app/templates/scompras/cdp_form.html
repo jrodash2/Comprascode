@@ -73,6 +73,8 @@
                   <tr>
                     <th>Código</th>
                     <th>Descripción</th>
+                    <th>Producto</th>
+                    <th>Subproducto</th>
                     <th>Disponible</th>
                   </tr>
                 </thead>
@@ -81,11 +83,13 @@
                     <tr>
                       <td>{{ renglon.codigo_renglon }}</td>
                       <td>{{ renglon.descripcion }}</td>
+                      <td>{{ renglon.producto.nombre|default:'-' }}</td>
+                      <td>{{ renglon.subproducto.nombre|default:'-' }}</td>
                       <td>{{ renglon.monto_disponible }}</td>
                     </tr>
                   {% empty %}
                     <tr>
-                      <td colspan="3" class="text-center text-muted">No hay renglones disponibles para el año de la solicitud.</td>
+                      <td colspan="5" class="text-center text-muted">No hay renglones disponibles para el año de la solicitud.</td>
                     </tr>
                   {% endfor %}
                 </tbody>
