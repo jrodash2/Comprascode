@@ -268,6 +268,8 @@ class PresupuestoAnual(models.Model):
 
 class PresupuestoRenglon(models.Model):
     presupuesto_anual = models.ForeignKey(PresupuestoAnual, on_delete=models.CASCADE, related_name='renglones')
+    producto = models.ForeignKey(Producto, on_delete=models.PROTECT, null=True, blank=True)
+    subproducto = models.ForeignKey(Subproducto, on_delete=models.PROTECT, null=True, blank=True)
     codigo_renglon = models.CharField(max_length=50)
     descripcion = models.CharField(max_length=255, blank=True, null=True)
     monto_inicial = models.DecimalField(max_digits=14, decimal_places=2)
@@ -285,6 +287,16 @@ class PresupuestoRenglon(models.Model):
         return f"{self.codigo_renglon} - {self.presupuesto_anual.anio}"
 
     @property
+    def contexto_programatico(self):
+        if self.producto and self.subproducto:
+            return f"{self.producto.nombre} / {self.subproducto.nombre}"
+        if self.producto:
+            return self.producto.nombre
+        if self.subproducto:
+            return self.subproducto.nombre
+        return '-'
+
+    @property
     def monto_disponible(self):
         return (self.monto_inicial + self.monto_modificado) - (self.monto_reservado + self.monto_ejecutado)
 
@@ -292,6 +304,10 @@ class PresupuestoRenglon(models.Model):
         for campo in ['monto_inicial', 'monto_modificado', 'monto_reservado', 'monto_ejecutado']:
             if getattr(self, campo, Decimal('0.00')) < 0:
                 raise ValidationError(f'El campo {campo} no puede ser negativo.')
+        if self.subproducto and not self.producto:
+            self.producto = self.subproducto.producto
+        if self.subproducto and self.producto and self.subproducto.producto_id != self.producto_id:
+            raise ValidationError('El subproducto debe pertenecer al producto seleccionado.')
 
     def save(self, *args, **kwargs):
         es_nuevo = self._state.adding

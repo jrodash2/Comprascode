@@ -38,8 +38,22 @@
             {% endif %}
             <form method="post" novalidate>
               {% csrf_token %}
-                <div class="mb-3">
-                  <label class="form-label">Código de renglón</label>
+              <div class="mb-3">
+                <label class="form-label">Producto</label>
+                {{ form.producto }}
+                {% if form.producto.errors %}
+                  <div class="text-danger small">{{ form.producto.errors|striptags }}</div>
+                {% endif %}
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Subproducto</label>
+                {{ form.subproducto }}
+                {% if form.subproducto.errors %}
+                  <div class="text-danger small">{{ form.subproducto.errors|striptags }}</div>
+                {% endif %}
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Código de renglón</label>
                 {{ form.codigo_renglon }}
                 {% if form.codigo_renglon.errors %}
                   <div class="text-danger small">{{ form.codigo_renglon.errors|striptags }}</div>
@@ -109,6 +123,8 @@
                   <tr>
                     <th>Código</th>
                     <th>Descripción</th>
+                    <th>Producto</th>
+                    <th>Subproducto</th>
                     <th class="text-end">Disponible</th>
                     <th class="text-end">Reservado</th>
                     <th class="text-end">Ejecutado</th>
@@ -123,6 +139,8 @@
                     <tr>
                       <td>{{ renglon.codigo_renglon }}</td>
                       <td>{{ renglon.descripcion|default:'-' }}</td>
+                      <td>{{ renglon.producto.nombre|default:'-' }}</td>
+                      <td>{{ renglon.subproducto.nombre|default:'-' }}</td>
                       <td class="text-end">{{ renglon.monto_disponible }}</td>
                       <td class="text-end">{{ renglon.monto_reservado }}</td>
                       <td class="text-end">{{ renglon.monto_ejecutado }}</td>
@@ -137,7 +155,7 @@
                     </tr>
                   {% empty %}
                     <tr>
-                      <td colspan="6" class="text-center text-muted">No hay renglones registrados para este año.</td>
+                      <td colspan="9" class="text-center text-muted">No hay renglones registrados para este año.</td>
                     </tr>
                   {% endfor %}
                 </tbody>
