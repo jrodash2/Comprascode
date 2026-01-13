@@ -11,6 +11,7 @@ from .models import (
     Departamento,
     Seccion,
     SolicitudCompra,
+    Producto,
     Subproducto,
     UsuarioDepartamento,
     Institucion,
@@ -517,18 +518,45 @@ class PresupuestoAnualForm(forms.ModelForm):
 class PresupuestoRenglonForm(forms.ModelForm):
     class Meta:
         model = PresupuestoRenglon
-        fields = ['codigo_renglon', 'descripcion', 'monto_inicial']
+        fields = ['producto', 'subproducto', 'codigo_renglon', 'descripcion', 'monto_inicial']
         widgets = {
+            'producto': forms.Select(attrs={'class': 'form-control', 'id': 'id_producto'}),
+            'subproducto': forms.Select(attrs={'class': 'form-control', 'id': 'id_subproducto'}),
             'codigo_renglon': forms.TextInput(attrs={'class': 'form-control'}),
             'descripcion': forms.TextInput(attrs={'class': 'form-control'}),
             'monto_inicial': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['subproducto'].queryset = Subproducto.objects.none()
+        if 'producto' in self.data:
+            try:
+                producto_id = int(self.data.get('producto'))
+                self.fields['subproducto'].queryset = Subproducto.objects.filter(producto_id=producto_id)
+            except (ValueError, TypeError):
+                pass
+        elif self.instance.pk and self.instance.producto:
+            self.fields['subproducto'].queryset = self.instance.producto.subproductos.all()
 
     def clean_monto_inicial(self):
         monto = self.cleaned_data.get('monto_inicial')
         if monto is None or monto <= 0:
             raise ValidationError('El monto inicial debe ser mayor que cero.')
         return monto
+
+    def clean(self):
+        cleaned = super().clean()
+        producto = cleaned.get('producto')
+        subproducto = cleaned.get('subproducto')
+
+        if subproducto and not producto:
+            cleaned['producto'] = subproducto.producto
+            producto = cleaned['producto']
+        if subproducto and producto and subproducto.producto_id != producto.id:
+            raise ValidationError('El subproducto debe pertenecer al producto seleccionado.')
+
+        return cleaned
 
 
 class EjecutarCDPForm(forms.Form):

@@ -542,7 +542,7 @@ def presupuesto_anual_detalle(request, presupuesto_id):
     presupuesto = get_object_or_404(PresupuestoAnual.objects.prefetch_related('renglones'), pk=presupuesto_id)
     user = request.user
     es_admin = user.is_superuser or user.groups.filter(name='Administrador').exists()
-    renglones = presupuesto.renglones.all()
+    renglones = presupuesto.renglones.select_related('producto', 'subproducto').all()
 
     if request.method == 'POST':
         if not presupuesto.activo:
