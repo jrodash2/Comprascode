@@ -697,17 +697,7 @@ def kardex_renglon(request, renglon_id):
         ),
         pk=renglon_id,
     )
-    producto_label = str(renglon.producto) if renglon.producto else 'Sin producto'
-    subproducto_label = str(renglon.subproducto) if renglon.subproducto else 'Sin subproducto'
-    descripcion = renglon.descripcion or '-'
-    titulo_detallado = (
-        f"Kardex del renglón {renglon.codigo_renglon} - {descripcion} | "
-        f"Producto: {producto_label} | Subproducto: {subproducto_label} "
-        f"({renglon.presupuesto_anual.anio})"
-    )
-    renglon_context_label = (
-        f"[{renglon.codigo_renglon}] {descripcion} — {producto_label} / {subproducto_label}"
-    )
+    titulo_detallado = f"Kardex del renglón {renglon.label_compacto} ({renglon.presupuesto_anual.anio})"
 
     movimientos = renglon.kardex.select_related(
         'solicitud',
@@ -730,10 +720,7 @@ def kardex_renglon(request, renglon_id):
             'movimientos': movimientos,
             'tipos': KardexPresupuesto.TipoMovimiento.choices,
             'tipo_filtrado': tipo,
-            'producto_label': producto_label,
-            'subproducto_label': subproducto_label,
             'titulo_detallado': titulo_detallado,
-            'renglon_context_label': renglon_context_label,
         },
     )
 
@@ -1359,7 +1346,10 @@ def dashboard_admin(request):
     renglones_resumen = []
 
     if presupuesto_activo:
-        renglones_qs = presupuesto_activo.renglones.annotate(
+        renglones_qs = presupuesto_activo.renglones.select_related(
+            'producto',
+            'subproducto',
+        ).annotate(
             disponible=ExpressionWrapper(
                 F('monto_inicial') + F('monto_modificado') - (F('monto_reservado') + F('monto_ejecutado')),
                 output_field=DecimalField(max_digits=14, decimal_places=2),
@@ -1387,17 +1377,17 @@ def dashboard_admin(request):
             'total_disponible': total_disponible,
         }
 
-        renglones_resumen = list(
-            renglones_qs.values(
-                'codigo_renglon',
-                'descripcion',
-                'monto_inicial',
-                'monto_modificado',
-                'monto_reservado',
-                'monto_ejecutado',
-                'disponible',
-            )
-        )
+        renglones_resumen = [
+            {
+                'label': renglon.label_compacto,
+                'monto_inicial': renglon.monto_inicial,
+                'monto_modificado': renglon.monto_modificado,
+                'monto_reservado': renglon.monto_reservado,
+                'monto_ejecutado': renglon.monto_ejecutado,
+                'disponible': renglon.disponible,
+            }
+            for renglon in renglones_qs
+        ]
 
     context = {
         'solicitudes_estado_json': json.dumps(solicitudes_estado),

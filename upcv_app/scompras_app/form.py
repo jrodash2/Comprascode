@@ -465,12 +465,7 @@ class CDPForm(forms.ModelForm):
         self.presupuesto_activo = activo
         self.fields['renglon'].queryset = queryset
         self.fields['renglon'].label_from_instance = (
-            lambda obj: (
-                f"[{obj.codigo_renglon}] {obj.descripcion or '-'} — "
-                f"Producto: {obj.producto.nombre if obj.producto else '-'} — "
-                f"Subproducto: {obj.subproducto.nombre if obj.subproducto else '-'} — "
-                f"Disponible: {obj.monto_disponible}"
-            )
+            lambda obj: f"{obj.label_compacto} / Disponible: {obj.monto_disponible}"
         )
         for field in self.fields.values():
             field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' form-control'
@@ -677,15 +672,8 @@ class TransferenciaPresupuestariaForm(forms.ModelForm):
             ).filter(presupuesto_anual=self.presupuesto_activo)
         self.fields['renglon_origen'].queryset = qs
         self.fields['renglon_destino'].queryset = qs
-        etiqueta = (
-            lambda obj: (
-                f"[{obj.codigo_renglon}] {obj.descripcion or '-'} — "
-                f"Producto: {obj.producto.nombre if obj.producto else '-'} — "
-                f"Subproducto: {obj.subproducto.nombre if obj.subproducto else '-'}"
-            )
-        )
-        self.fields['renglon_origen'].label_from_instance = etiqueta
-        self.fields['renglon_destino'].label_from_instance = etiqueta
+        self.fields['renglon_origen'].label_from_instance = lambda obj: obj.label_compacto
+        self.fields['renglon_destino'].label_from_instance = lambda obj: obj.label_compacto
         self.fields['descripcion'].label = 'Observación'
 
     def clean(self):

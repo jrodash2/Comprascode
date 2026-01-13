@@ -121,10 +121,7 @@
               <table class="table table-striped align-middle">
                 <thead class="table-light">
                   <tr>
-                    <th>Código</th>
-                    <th>Descripción</th>
-                    <th>Producto</th>
-                    <th>Subproducto</th>
+                    <th>Renglón</th>
                     <th class="text-end">Disponible</th>
                     <th class="text-end">Reservado</th>
                     <th class="text-end">Ejecutado</th>
@@ -137,10 +134,7 @@
                 <tbody>
                   {% for renglon in renglones %}
                     <tr>
-                      <td>{{ renglon.codigo_renglon }}</td>
-                      <td>{{ renglon.descripcion|default:'-' }}</td>
-                      <td>{{ renglon.producto.nombre|default:'-' }}</td>
-                      <td>{{ renglon.subproducto.nombre|default:'-' }}</td>
+                      <td>{{ renglon.label_compacto }}</td>
                       <td class="text-end">{{ renglon.monto_disponible }}</td>
                       <td class="text-end">{{ renglon.monto_reservado }}</td>
                       <td class="text-end">{{ renglon.monto_ejecutado }}</td>

@@ -8,12 +8,7 @@
       <div>
         <h4>{{ titulo_detallado }}</h4>
         <p class="text-muted mb-0">Historial contable no editable.</p>
-        <p class="text-muted mb-0">
-          <strong>Código:</strong> {{ renglon.codigo_renglon }} -
-          {{ renglon.descripcion|default:'-' }}
-          <span class="ms-2"><strong>Producto:</strong> {{ producto_label }}</span>
-          <span class="ms-2"><strong>Subproducto:</strong> {{ subproducto_label }}</span>
-        </p>
+        <p class="text-muted mb-0">{{ renglon.label_compacto }}</p>
       </div>
       <a class="btn btn-light" href="{% url 'scompras:presupuesto_anual_detalle' renglon.presupuesto_anual.id %}">Volver al presupuesto</a>
     </div>
@@ -74,13 +69,12 @@
                   </td>
                   <td>
                     {% if movimiento.transferencia %}
-                      Transferencia #{{ movimiento.transferencia.id }}
-                      desde [{{ movimiento.transferencia.renglon_origen.codigo_renglon }}]
-                      {{ movimiento.transferencia.renglon_origen.producto.nombre|default:'-' }}/{{ movimiento.transferencia.renglon_origen.subproducto.nombre|default:'-' }}
-                      → hacia [{{ movimiento.transferencia.renglon_destino.codigo_renglon }}]
-                      {{ movimiento.transferencia.renglon_destino.producto.nombre|default:'-' }}/{{ movimiento.transferencia.renglon_destino.subproducto.nombre|default:'-' }}
+                      Transferencia #{{ movimiento.transferencia.id }}:
+                      {{ movimiento.transferencia.renglon_origen.label_compacto }}
+                      →
+                      {{ movimiento.transferencia.renglon_destino.label_compacto }}
                     {% else %}
-                      {{ movimiento.referencia|default:'-' }} — {{ renglon_context_label }}
+                      {{ movimiento.referencia|default:'-' }} | {{ renglon.label_compacto }}
                     {% endif %}
                   </td>
                 </tr>

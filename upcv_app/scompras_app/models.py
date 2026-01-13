@@ -302,6 +302,16 @@ class PresupuestoRenglon(models.Model):
         return '-'
 
     @property
+    def label_compacto(self):
+        descripcion = self.descripcion or '-'
+        if not self.producto:
+            return f"Renglon {self.codigo_renglon} - {descripcion}"
+        etiqueta = f"Renglon {self.codigo_renglon} - {descripcion} / P-{self.producto.codigo}"
+        if self.subproducto:
+            etiqueta = f"{etiqueta} / SP-{self.subproducto.codigo}"
+        return etiqueta
+
+    @property
     def monto_disponible(self):
         return (self.monto_inicial + self.monto_modificado) - (self.monto_reservado + self.monto_ejecutado)
 
