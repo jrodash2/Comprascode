@@ -1306,43 +1306,69 @@ def rechazar_solicitud(request):
     return JsonResponse({"success": False, "error": "Método no permitido"})
 
 
+import os
+from django.conf import settings
+from django.contrib.staticfiles import finders
+
+def link_callback(uri, rel):
+    """
+    Convierte URIs /static/.. y /media/.. en rutas absolutas del sistema de archivos
+    para que xhtml2pdf pueda cargar imágenes.
+    """
+    # STATIC
+    if uri.startswith(settings.STATIC_URL):
+        path = uri.replace(settings.STATIC_URL, "")
+        absolute_path = finders.find(path)
+        if absolute_path:
+            return absolute_path
+
+    # MEDIA
+    if uri.startswith(settings.MEDIA_URL):
+        path = uri.replace(settings.MEDIA_URL, "")
+        absolute_path = os.path.join(settings.MEDIA_ROOT, path)
+        if os.path.isfile(absolute_path):
+            return absolute_path
+
+    # Si ya es un path absoluto y existe
+    if os.path.isfile(uri):
+        return uri
+
+    return uri
+
+
+from io import BytesIO
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+from xhtml2pdf import pisa
 
 def generar_pdf_solicitud(request, solicitud_id):
-    # Obtener la solicitud desde la base de datos
     solicitud = SolicitudCompra.objects.get(id=solicitud_id)
-
-    # Obtener los detalles de los insumos asociados a la solicitud
     detalles = InsumoSolicitud.objects.filter(solicitud=solicitud)
+    institucion = Institucion.objects.first()
 
-    # Obtener todos los insumos si es necesario
-    insumos = Insumo.objects.all()
-
-    # Crear el contexto para pasar al template
     context = {
         'solicitud': solicitud,
         'detalles': detalles,
-        'insumos': insumos,
-        
+        'institucion': institucion,
     }
 
-    # Renderizar el template a HTML con el contexto
     html = render_to_string('scompras/solicitud_pdf.html', context)
 
-    # Crear un buffer de memoria para generar el PDF
-    buffer = BytesIO()
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="solicitud.pdf"'
 
-    # Convertir el HTML a PDF usando xhtml2pdf
-    pdf = pisa.pisaDocument(BytesIO(html.encode('utf-8')), buffer)
+    pisa_status = pisa.CreatePDF(
+        src=html,
+        dest=response,
+        encoding='utf-8',
+        link_callback=link_callback
+    )
 
-    if pdf.err:
+    if pisa_status.err:
         return HttpResponse("Error al generar el PDF", status=500)
 
-    # Generar la respuesta HTTP para abrir el PDF en una nueva ventana
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'inline; filename="solicitud.pdf"'  # Cambiar 'attachment' por 'inline'
-    response.write(buffer.getvalue())
-
     return response
+
 
 @login_required
 @grupo_requerido('Administrador', 'scompras')
