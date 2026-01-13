@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.urls import reverse
-from django.db.models import Sum
+from django.db.models import Sum, Prefetch
 from django.db.models.signals import post_save
 from django.utils import timezone
 
@@ -413,6 +413,59 @@ class PresupuestoRenglon(models.Model):
                 cdo=cdo,
             )
         self.refresh_from_db()
+
+
+class SubproductoPresupuestoRenglon(models.Model):
+    presupuesto_anual = models.ForeignKey(
+        PresupuestoAnual,
+        on_delete=models.CASCADE,
+        related_name='asignaciones_subproductos',
+    )
+    subproducto = models.ForeignKey(
+        Subproducto,
+        on_delete=models.CASCADE,
+        related_name='asignaciones_presupuesto',
+    )
+    presupuesto_renglon = models.ForeignKey(
+        PresupuestoRenglon,
+        on_delete=models.CASCADE,
+        related_name='subproducto_renglones',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('presupuesto_anual', 'subproducto', 'presupuesto_renglon')
+        verbose_name = 'Asignación de subproducto a renglón'
+        verbose_name_plural = 'Asignaciones de subproductos a renglones'
+
+    def __str__(self):
+        return (
+            f"{self.subproducto} -> {self.presupuesto_renglon.codigo_renglon} "
+            f"({self.presupuesto_anual.anio})"
+        )
+
+    def clean(self):
+        if (
+            self.presupuesto_renglon_id
+            and self.presupuesto_anual_id
+            and self.presupuesto_renglon.presupuesto_anual_id != self.presupuesto_anual_id
+        ):
+            raise ValidationError(
+                'El renglón debe pertenecer al mismo presupuesto anual indicado en la asignación.'
+            )
+
+
+def prefetch_renglones_con_subproductos(queryset):
+    return queryset.prefetch_related(
+        Prefetch(
+            'subproducto_renglones',
+            queryset=SubproductoPresupuestoRenglon.objects.select_related(
+                'subproducto',
+                'subproducto__producto',
+                'presupuesto_anual',
+            ),
+        ),
+    )
 
 
 class KardexPresupuesto(models.Model):
