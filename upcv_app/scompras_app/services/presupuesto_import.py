@@ -141,15 +141,30 @@ def import_rows(presupuesto, rows, filename, modo='solo_crear'):
                 producto = None
                 subproducto = None
                 if producto_codigo:
-                    producto = productos.get(producto_codigo)
-                    if not producto:
-                        raise ValidationError(f'Producto no encontrado: {producto_codigo}')
+                    producto, creado = Producto.objects.get_or_create(
+                        codigo=producto_codigo,
+                        defaults={
+                            'nombre': f'Importado {producto_codigo}',
+                            'descripcion': 'Importado desde carga masiva',
+                            'activo': True,
+                        },
+                    )
+                    if creado:
+                        productos[producto.codigo] = producto
                 if subproducto_codigo:
                     if not producto_codigo:
                         raise ValidationError('Debe indicar producto cuando se especifica subproducto.')
-                    subproducto = subproductos.get((producto_codigo, subproducto_codigo))
-                    if not subproducto:
-                        raise ValidationError(f'Subproducto no encontrado: {subproducto_codigo}')
+                    subproducto, creado = Subproducto.objects.get_or_create(
+                        producto=producto,
+                        codigo=subproducto_codigo,
+                        defaults={
+                            'nombre': f'Importado {subproducto_codigo}',
+                            'descripcion': 'Importado desde carga masiva',
+                            'activo': True,
+                        },
+                    )
+                    if creado:
+                        subproductos[(producto.codigo, subproducto.codigo)] = subproducto
 
                 clave = (producto.id if producto else None, subproducto.id if subproducto else None, codigo_renglon)
                 existente = existentes.get(clave)

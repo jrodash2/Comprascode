@@ -284,7 +284,7 @@ class PresupuestoRenglon(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['presupuesto_anual', 'codigo_renglon', 'producto', 'subproducto'],
-                name='uniq_pres_anual_prod_subprod_cod',
+                name='uniq_renglon_por_producto_subproducto',
             )
         ]
 
