@@ -36,10 +36,24 @@
             {% if not presupuesto.activo %}
               <div class="alert alert-warning">Solo el presupuesto activo permite agregar renglones.</div>
             {% endif %}
-            <form method="post" novalidate>
+            <form method="post" novalidate data-subproductos-url="{% url 'scompras:subproductos_por_producto' %}">
               {% csrf_token %}
-                <div class="mb-3">
-                  <label class="form-label">Código de renglón</label>
+              <div class="mb-3">
+                <label class="form-label">Producto</label>
+                {{ form.producto }}
+                {% if form.producto.errors %}
+                  <div class="text-danger small">{{ form.producto.errors|striptags }}</div>
+                {% endif %}
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Subproducto</label>
+                {{ form.subproducto }}
+                {% if form.subproducto.errors %}
+                  <div class="text-danger small">{{ form.subproducto.errors|striptags }}</div>
+                {% endif %}
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Código de renglón</label>
                 {{ form.codigo_renglon }}
                 {% if form.codigo_renglon.errors %}
                   <div class="text-danger small">{{ form.codigo_renglon.errors|striptags }}</div>
@@ -107,8 +121,7 @@
               <table class="table table-striped align-middle">
                 <thead class="table-light">
                   <tr>
-                    <th>Código</th>
-                    <th>Descripción</th>
+                    <th>Renglón</th>
                     <th class="text-end">Disponible</th>
                     <th class="text-end">Reservado</th>
                     <th class="text-end">Ejecutado</th>
@@ -121,8 +134,7 @@
                 <tbody>
                   {% for renglon in renglones %}
                     <tr>
-                      <td>{{ renglon.codigo_renglon }}</td>
-                      <td>{{ renglon.descripcion|default:'-' }}</td>
+                      <td>{{ renglon.label_compacto }}</td>
                       <td class="text-end">{{ renglon.monto_disponible }}</td>
                       <td class="text-end">{{ renglon.monto_reservado }}</td>
                       <td class="text-end">{{ renglon.monto_ejecutado }}</td>
@@ -149,4 +161,71 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+  {{ block.super }}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const productoSelect = document.getElementById('id_producto');
+      const subproductoSelect = document.getElementById('id_subproducto');
+
+      if (!productoSelect || !subproductoSelect) {
+        return;
+      }
+
+      const url = productoSelect.dataset.subproductosUrl || productoSelect.closest('form')?.dataset.subproductosUrl;
+      const initialSubproducto = subproductoSelect.value;
+
+      function resetSubproductos() {
+        subproductoSelect.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '---------';
+        subproductoSelect.appendChild(placeholder);
+      }
+
+      function cargarSubproductos(productoId, selectedId) {
+        resetSubproductos();
+        if (!productoId || !url) {
+          return;
+        }
+        fetch(`${url}?producto_id=${productoId}`)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error('Error al cargar subproductos');
+            }
+            return response.json();
+          })
+          .then((data) => {
+            const resultados = data.results || [];
+            if (resultados.length === 0) {
+              return;
+            }
+            resultados.forEach((item) => {
+              const option = document.createElement('option');
+              option.value = item.id;
+              option.textContent = item.label;
+              if (selectedId && String(item.id) === String(selectedId)) {
+                option.selected = true;
+              }
+              subproductoSelect.appendChild(option);
+            });
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      }
+
+      resetSubproductos();
+
+      if (productoSelect.value) {
+        cargarSubproductos(productoSelect.value, initialSubproducto);
+      }
+
+      productoSelect.addEventListener('change', function () {
+        cargarSubproductos(this.value, null);
+      });
+    });
+  </script>
 {% endblock %}

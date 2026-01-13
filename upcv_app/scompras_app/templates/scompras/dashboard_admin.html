@@ -121,7 +121,7 @@
     const deptoValores = departamentos.map(item => item.total);
 
     const renglones = {{ renglones_resumen_json|safe }} || [];
-    const renglonLabels = renglones.map(item => item.codigo_renglon);
+    const renglonLabels = renglones.map(item => item.label);
     const renglonValores = renglones.map(item => Number(item.disponible));
 
     const buildChart = (id, type, labels, data, color) => {

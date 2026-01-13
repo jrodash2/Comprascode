@@ -7,7 +7,7 @@
     <div class="page-title d-flex justify-content-between align-items-center">
       <div>
         <h4>Liberar CDP #{{ cdp.id }}</h4>
-        <p class="text-muted mb-0">Solicitud {{ cdp.solicitud.codigo_correlativo }} - {{ cdp.renglon.codigo_renglon }} ({{ cdp.renglon.presupuesto_anual.anio }})</p>
+        <p class="text-muted mb-0">Solicitud {{ cdp.solicitud.codigo_correlativo }} - {{ cdp.renglon.label_compacto }}</p>
       </div>
       <a class="btn btn-light" href="{% url 'scompras:detalle_solicitud' cdp.solicitud.id %}">Volver al detalle</a>
     </div>
@@ -93,7 +93,7 @@
                   {% for item in cdps_solicitud %}
                     <tr>
                       <td>{{ item.id }}</td>
-                      <td>{{ item.renglon.codigo_renglon }}</td>
+                      <td>{{ item.renglon.label_compacto }}</td>
                       <td class="text-end">{{ item.monto }}</td>
                       <td class="text-end">{{ item.monto_reservado_renglon }}</td>
                       <td class="text-end">{{ item.monto_disponible_renglon }}</td>
