@@ -1,5 +1,5 @@
 {% extends 'scompras/base.html' %}
-{% load static %}
+{% load static money %}
 
 {% block content %}
 <div class="page-body">
@@ -55,9 +55,9 @@
                 <tr>
                   <td>{{ movimiento.fecha|date:'Y-m-d H:i' }}</td>
                   <td>{{ movimiento.get_tipo_display }}</td>
-                  <td class="text-end">{{ movimiento.monto }}</td>
-                  <td class="text-end">{{ movimiento.saldo_anterior }}</td>
-                  <td class="text-end">{{ movimiento.saldo_nuevo }}</td>
+                  <td class="text-end">{{ movimiento.monto|money_gtq }}</td>
+                  <td class="text-end">{{ movimiento.saldo_anterior|money_gtq }}</td>
+                  <td class="text-end">{{ movimiento.saldo_nuevo|money_gtq }}</td>
                   <td>
                     {% if movimiento.solicitud %}
                       <a href="{% url 'scompras:detalle_solicitud' movimiento.solicitud.id %}">

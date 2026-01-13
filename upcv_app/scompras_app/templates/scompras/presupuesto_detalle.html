@@ -1,5 +1,5 @@
 {% extends 'scompras/base.html' %}
-{% load static %}
+{% load static money %}
 
 {% block content %}
 <div class="page-body">
@@ -92,23 +92,23 @@
             <div class="row text-center">
               <div class="col-6 col-md-3">
                 <p class="text-muted mb-1">Inicial</p>
-                <h5 class="mb-0">{{ resumen.total_inicial }}</h5>
+                <h5 class="mb-0">{{ resumen.total_inicial|money_gtq }}</h5>
               </div>
               <div class="col-6 col-md-3">
                 <p class="text-muted mb-1">Modificado</p>
-                <h5 class="mb-0">{{ resumen.total_modificado }}</h5>
+                <h5 class="mb-0">{{ resumen.total_modificado|money_gtq }}</h5>
               </div>
               <div class="col-6 col-md-3">
                 <p class="text-muted mb-1">Reservado</p>
-                <h5 class="mb-0">{{ resumen.total_reservado }}</h5>
+                <h5 class="mb-0">{{ resumen.total_reservado|money_gtq }}</h5>
               </div>
               <div class="col-6 col-md-3">
                 <p class="text-muted mb-1">Ejecutado</p>
-                <h5 class="mb-0">{{ resumen.total_ejecutado }}</h5>
+                <h5 class="mb-0">{{ resumen.total_ejecutado|money_gtq }}</h5>
               </div>
             </div>
             <div class="text-center mt-3">
-              <span class="badge rounded-pill bg-success">Disponible: {{ resumen.total_disponible }}</span>
+              <span class="badge rounded-pill bg-success">Disponible: {{ resumen.total_disponible|money_gtq }}</span>
             </div>
           </div>
         </div>
@@ -136,9 +136,9 @@
                   {% for renglon in renglones %}
                     <tr>
                       <td>{{ renglon.label_compacto }}</td>
-                      <td class="text-end">{{ renglon.monto_disponible }}</td>
-                      <td class="text-end">{{ renglon.monto_reservado }}</td>
-                      <td class="text-end">{{ renglon.monto_ejecutado }}</td>
+                      <td class="text-end">{{ renglon.monto_disponible|money_gtq }}</td>
+                      <td class="text-end">{{ renglon.monto_reservado|money_gtq }}</td>
+                      <td class="text-end">{{ renglon.monto_ejecutado|money_gtq }}</td>
                       {% if es_admin and presupuesto.activo %}
                         <td class="text-end">
                           <a class="btn btn-sm btn-outline-primary" href="{% url 'scompras:transferencia_crear' %}?origen={{ renglon.id }}">Transferir</a>

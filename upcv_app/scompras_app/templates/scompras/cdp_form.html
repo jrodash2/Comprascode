@@ -1,5 +1,5 @@
 {% extends 'scompras/base.html' %}
-{% load static %}
+{% load static money %}
 
 {% block content %}
 <div class="page-body">
@@ -79,7 +79,7 @@
                   {% for renglon in renglones_disponibles %}
                     <tr>
                       <td>{{ renglon.label_compacto }}</td>
-                      <td>{{ renglon.monto_disponible }}</td>
+                      <td>{{ renglon.monto_disponible|money_gtq }}</td>
                     </tr>
                   {% empty %}
                     <tr>
