@@ -19,10 +19,24 @@ HEADERS_REQUERIDOS = {
 }
 
 
+def to_str(valor):
+    if valor is None:
+        return ''
+    return str(valor).strip()
+
+
+def zfill_code(valor, width):
+    if not valor:
+        return ''
+    if valor.isdigit():
+        return valor.zfill(width)
+    return valor
+
+
 def parse_decimal(valor):
     if valor is None:
         raise ValidationError('El monto inicial es obligatorio.')
-    valor_str = str(valor).strip()
+    valor_str = to_str(valor)
     if not valor_str:
         raise ValidationError('El monto inicial es obligatorio.')
     valor_str = valor_str.replace(' ', '')
@@ -113,10 +127,10 @@ def import_rows(presupuesto, rows, filename, modo='solo_crear'):
             resultado['total'] += 1
             fila = row['numero_fila']
             try:
-                producto_codigo = (row.get('producto_codigo') or '').strip()
-                subproducto_codigo = (row.get('subproducto_codigo') or '').strip()
-                codigo_renglon = (row.get('codigo_renglon') or '').strip()
-                descripcion = (row.get('descripcion') or '').strip()
+                producto_codigo = to_str(row.get('producto_codigo'))
+                subproducto_codigo = zfill_code(to_str(row.get('subproducto_codigo')), 3)
+                codigo_renglon = to_str(row.get('codigo_renglon'))
+                descripcion = to_str(row.get('descripcion'))
                 monto_inicial = parse_decimal(row.get('monto_inicial'))
 
                 if not codigo_renglon:
