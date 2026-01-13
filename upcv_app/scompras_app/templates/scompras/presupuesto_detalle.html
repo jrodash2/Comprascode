@@ -12,6 +12,7 @@
       <div class="d-flex gap-2 align-items-center">
         {% if es_admin and presupuesto.activo %}
           <a class="btn btn-outline-primary" href="{% url 'scompras:transferencia_crear' %}">Nueva transferencia</a>
+          <a class="btn btn-outline-secondary" href="{% url 'scompras:presupuesto_renglon_carga_masiva' presupuesto.id %}">Carga masiva</a>
         {% endif %}
         {% if presupuesto.activo %}
           <span class="badge bg-success">Presupuesto activo</span>

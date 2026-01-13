@@ -284,7 +284,7 @@ class PresupuestoRenglon(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['presupuesto_anual', 'codigo_renglon', 'producto', 'subproducto'],
-                name='uniq_presupuesto_codigo_producto_subproducto',
+                name='uniq_pres_anual_prod_subprod_cod',
             )
         ]
 
@@ -326,13 +326,15 @@ class PresupuestoRenglon(models.Model):
 
     def save(self, *args, **kwargs):
         es_nuevo = self._state.adding
+        referencia_kardex = getattr(self, '_kardex_referencia', None)
+        omitir_kardex = getattr(self, '_omitir_kardex', False)
         super().save(*args, **kwargs)
-        if es_nuevo:
+        if es_nuevo and not omitir_kardex:
             self._registrar_kardex(
                 KardexPresupuesto.TipoMovimiento.CARGA_INICIAL,
                 self.monto_inicial,
                 Decimal('0.00'),
-                'Carga inicial de presupuesto'
+                referencia_kardex or 'Carga inicial de presupuesto'
             )
 
     def _registrar_kardex(

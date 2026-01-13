@@ -30,6 +30,7 @@ from .form import (
     CDPForm,
     PresupuestoRenglonForm,
     PresupuestoAnualForm,
+    PresupuestoCargaMasivaForm,
     EjecutarCDPForm,
     LiberarCDPForm,
     LiberarCDPSolicitudForm,
@@ -73,6 +74,7 @@ from django.contrib import messages
 import json
 from django.contrib.auth.models import Group
 from .utils import grupo_requerido
+from .services.presupuesto_import import import_rows, read_rows
 from django.views.decorators.http import require_GET
 from django.db.models.functions import Coalesce
 from django.db import transaction
@@ -598,6 +600,50 @@ def presupuesto_anual_detalle(request, presupuesto_id):
             'form': form,
             'resumen': resumen,
             'es_admin': es_admin,
+        },
+    )
+
+
+@login_required
+@grupo_requerido('Administrador', 'scompras')
+def presupuesto_renglon_carga_masiva(request, presupuesto_id):
+    presupuesto = get_object_or_404(PresupuestoAnual, pk=presupuesto_id)
+    resultado = None
+
+    if request.method == 'POST':
+        form = PresupuestoCargaMasivaForm(request.POST, request.FILES)
+        if form.is_valid():
+            archivo = form.cleaned_data['archivo']
+            modo = form.cleaned_data.get('modo') or 'solo_crear'
+            try:
+                filas = read_rows(archivo)
+                resultado = import_rows(
+                    presupuesto=presupuesto,
+                    rows=filas,
+                    filename=archivo.name,
+                    modo=modo,
+                )
+                messages.success(
+                    request,
+                    (
+                        f"Carga finalizada. Filas: {resultado['total']}, "
+                        f"creados: {resultado['creados']}, "
+                        f"duplicados: {resultado['duplicados']}, "
+                        f"actualizados: {resultado['actualizados']}."
+                    ),
+                )
+            except ValidationError as exc:
+                form.add_error('archivo', exc)
+    else:
+        form = PresupuestoCargaMasivaForm()
+
+    return render(
+        request,
+        'scompras/presupuesto_carga_masiva.html',
+        {
+            'presupuesto': presupuesto,
+            'form': form,
+            'resultado': resultado,
         },
     )
 

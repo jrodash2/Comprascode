@@ -577,6 +577,23 @@ class PresupuestoRenglonForm(forms.ModelForm):
         return cleaned
 
 
+class PresupuestoCargaMasivaForm(forms.Form):
+    archivo = forms.FileField(label='Archivo (CSV o XLSX)')
+    modo = forms.ChoiceField(
+        choices=[
+            ('solo_crear', 'Solo crear (no actualizar)'),
+            ('actualizar_si_sin_movimientos', 'Actualizar si no tiene movimientos'),
+        ],
+        required=False,
+        initial='solo_crear',
+        label='Modo de carga',
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' form-control'
+
 class EjecutarCDPForm(forms.Form):
     confirmar = forms.BooleanField(
         required=True,
