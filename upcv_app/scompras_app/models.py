@@ -268,6 +268,8 @@ class PresupuestoAnual(models.Model):
 
 class PresupuestoRenglon(models.Model):
     presupuesto_anual = models.ForeignKey(PresupuestoAnual, on_delete=models.CASCADE, related_name='renglones')
+    producto = models.ForeignKey(Producto, on_delete=models.PROTECT, null=True, blank=True)
+    subproducto = models.ForeignKey(Subproducto, on_delete=models.PROTECT, null=True, blank=True)
     codigo_renglon = models.CharField(max_length=50)
     descripcion = models.CharField(max_length=255, blank=True, null=True)
     monto_inicial = models.DecimalField(max_digits=14, decimal_places=2)
@@ -278,11 +280,36 @@ class PresupuestoRenglon(models.Model):
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('presupuesto_anual', 'codigo_renglon')
         ordering = ['codigo_renglon']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['presupuesto_anual', 'codigo_renglon', 'producto', 'subproducto'],
+                name='uniq_pres_anual_prod_subprod_cod',
+            )
+        ]
 
     def __str__(self):
         return f"{self.codigo_renglon} - {self.presupuesto_anual.anio}"
+
+    @property
+    def contexto_programatico(self):
+        if self.producto and self.subproducto:
+            return f"{self.producto.nombre} / {self.subproducto.nombre}"
+        if self.producto:
+            return self.producto.nombre
+        if self.subproducto:
+            return self.subproducto.nombre
+        return '-'
+
+    @property
+    def label_compacto(self):
+        descripcion = self.descripcion or '-'
+        if not self.producto:
+            return f"Renglon {self.codigo_renglon} - {descripcion}"
+        etiqueta = f"Renglon {self.codigo_renglon} - {descripcion} / P-{self.producto.codigo}"
+        if self.subproducto:
+            etiqueta = f"{etiqueta} / SP-{self.subproducto.codigo}"
+        return etiqueta
 
     @property
     def monto_disponible(self):
@@ -292,22 +319,41 @@ class PresupuestoRenglon(models.Model):
         for campo in ['monto_inicial', 'monto_modificado', 'monto_reservado', 'monto_ejecutado']:
             if getattr(self, campo, Decimal('0.00')) < 0:
                 raise ValidationError(f'El campo {campo} no puede ser negativo.')
+        if self.subproducto and not self.producto:
+            self.producto = self.subproducto.producto
+        if self.subproducto and self.producto and self.subproducto.producto_id != self.producto_id:
+            raise ValidationError('El subproducto debe pertenecer al producto seleccionado.')
 
     def save(self, *args, **kwargs):
         es_nuevo = self._state.adding
+        referencia_kardex = getattr(self, '_kardex_referencia', None)
+        omitir_kardex = getattr(self, '_omitir_kardex', False)
         super().save(*args, **kwargs)
-        if es_nuevo:
+        if es_nuevo and not omitir_kardex:
             self._registrar_kardex(
                 KardexPresupuesto.TipoMovimiento.CARGA_INICIAL,
                 self.monto_inicial,
                 Decimal('0.00'),
-                'Carga inicial de presupuesto'
+                referencia_kardex or 'Carga inicial de presupuesto'
             )
 
-    def _registrar_kardex(self, tipo, monto, saldo_anterior, referencia, solicitud=None):
+    def _registrar_kardex(
+        self,
+        tipo,
+        monto,
+        saldo_anterior,
+        referencia,
+        solicitud=None,
+        cdp=None,
+        cdo=None,
+        transferencia=None,
+    ):
         KardexPresupuesto.objects.create(
             presupuesto_renglon=self,
             solicitud=solicitud,
+            cdp=cdp,
+            cdo=cdo,
+            transferencia=transferencia,
             tipo=tipo,
             monto=monto,
             saldo_anterior=saldo_anterior,
@@ -315,7 +361,7 @@ class PresupuestoRenglon(models.Model):
             referencia=referencia,
         )
 
-    def reservar_monto(self, monto, referencia, solicitud=None):
+    def reservar_monto(self, monto, referencia, solicitud=None, cdp=None):
         if monto <= 0:
             raise ValidationError('El monto a reservar debe ser mayor que cero.')
         with transaction.atomic():
@@ -332,10 +378,11 @@ class PresupuestoRenglon(models.Model):
                 saldo_anterior,
                 referencia,
                 solicitud=solicitud,
+                cdp=cdp,
             )
         self.refresh_from_db()
 
-    def liberar_reserva(self, monto, referencia, solicitud=None):
+    def liberar_reserva(self, monto, referencia, solicitud=None, cdp=None):
         if monto <= 0:
             raise ValidationError('El monto a liberar debe ser mayor que cero.')
         with transaction.atomic():
@@ -352,10 +399,11 @@ class PresupuestoRenglon(models.Model):
                 saldo_anterior,
                 referencia,
                 solicitud=solicitud,
+                cdp=cdp,
             )
         self.refresh_from_db()
 
-    def ejecutar_monto(self, monto, referencia, solicitud=None):
+    def ejecutar_monto(self, monto, referencia, solicitud=None, cdp=None, cdo=None):
         if monto <= 0:
             raise ValidationError('El monto a ejecutar debe ser mayor que cero.')
         with transaction.atomic():
@@ -373,6 +421,8 @@ class PresupuestoRenglon(models.Model):
                 saldo_anterior,
                 referencia,
                 solicitud=solicitud,
+                cdp=cdp,
+                cdo=cdo,
             )
         self.refresh_from_db()
 
@@ -394,6 +444,30 @@ class KardexPresupuesto(models.Model):
         null=True,
         blank=True,
         help_text='Referencia contable a la solicitud de compra vinculada (si aplica)'
+    )
+    cdp = models.ForeignKey(
+        'CDP',
+        on_delete=models.PROTECT,
+        related_name='kardex_movimientos',
+        null=True,
+        blank=True,
+        help_text='Referencia opcional al CDP asociado al movimiento.'
+    )
+    cdo = models.ForeignKey(
+        'CDO',
+        on_delete=models.PROTECT,
+        related_name='kardex_movimientos',
+        null=True,
+        blank=True,
+        help_text='Referencia opcional al CDO asociado al movimiento.'
+    )
+    transferencia = models.ForeignKey(
+        'TransferenciaPresupuestaria',
+        on_delete=models.PROTECT,
+        related_name='kardex_movimientos',
+        null=True,
+        blank=True,
+        help_text='Referencia opcional a la transferencia asociada al movimiento.'
     )
     fecha = models.DateTimeField(auto_now_add=True)
     tipo = models.CharField(max_length=50, choices=TipoMovimiento.choices)
@@ -473,6 +547,7 @@ class CDP(models.Model):
                 self.monto,
                 referencia=f'CDP #{self.pk} | Solicitud {self.solicitud.codigo_correlativo or self.solicitud_id} - Reserva',
                 solicitud=self.solicitud,
+                cdp=self,
             )
         return self
 
@@ -490,6 +565,7 @@ class CDP(models.Model):
                 self.monto,
                 referencia=f'CDP #{self.pk} | Solicitud {self.solicitud.codigo_correlativo or self.solicitud_id} - Liberación',
                 solicitud=self.solicitud,
+                cdp=self,
             )
             self._actualizar_estado(CDP.Estado.LIBERADO)
 
@@ -499,12 +575,14 @@ class CDP(models.Model):
         if not self.renglon.presupuesto_anual.activo:
             raise ValidationError('Solo se pueden ejecutar CDP pertenecientes al presupuesto activo.')
         with transaction.atomic():
+            cdo = CDO.objects.create(cdp=self, monto=self.monto)
             self.renglon.ejecutar_monto(
                 self.monto,
                 referencia=f'CDP #{self.pk} | Solicitud {self.solicitud.codigo_correlativo or self.solicitud_id} - Ejecución',
                 solicitud=self.solicitud,
+                cdp=self,
+                cdo=cdo,
             )
-            cdo = CDO.objects.create(cdp=self, monto=self.monto)
             self._actualizar_estado(CDP.Estado.EJECUTADO)
             return cdo
 
@@ -609,12 +687,14 @@ class TransferenciaPresupuestaria(models.Model):
                 -self.monto,
                 saldo_origen_antes,
                 f'Transferencia #{self.pk} hacia {destino.codigo_renglon} - Presupuesto {self.presupuesto_anual.anio}',
+                transferencia=self,
             )
             destino._registrar_kardex(
                 KardexPresupuesto.TipoMovimiento.TRANSFERENCIA_ENTRADA,
                 self.monto,
                 saldo_destino_antes,
                 f'Transferencia #{self.pk} desde {origen.codigo_renglon} - Presupuesto {self.presupuesto_anual.anio}',
+                transferencia=self,
             )
         return self
     

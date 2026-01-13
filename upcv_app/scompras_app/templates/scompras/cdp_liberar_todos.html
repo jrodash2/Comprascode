@@ -35,7 +35,7 @@
                   {% for item in cdps_reservados %}
                     <tr>
                       <td>{{ item.id }}</td>
-                      <td>{{ item.renglon.codigo_renglon }}</td>
+                      <td>{{ item.renglon.label_compacto }}</td>
                       <td class="text-end">{{ item.monto }}</td>
                       <td class="text-end">{{ item.renglon.monto_reservado }}</td>
                       <td class="text-end">{{ item.renglon.monto_disponible }}</td>
