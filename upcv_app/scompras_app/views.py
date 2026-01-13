@@ -391,6 +391,23 @@ def ajax_cargar_subproductos(request):
     return JsonResponse(data, safe=False)
 
 
+@login_required
+@grupo_requerido('Administrador', 'scompras')
+def subproductos_por_producto(request):
+    producto_id = request.GET.get('producto_id')
+    subproductos = Subproducto.objects.none()
+    if producto_id:
+        subproductos = Subproducto.objects.filter(producto_id=producto_id, activo=True).order_by('codigo', 'nombre')
+    data = [
+        {
+            'id': subproducto.id,
+            'label': f"{subproducto.codigo} - {subproducto.nombre}" if subproducto.codigo else subproducto.nombre,
+        }
+        for subproducto in subproductos
+    ]
+    return JsonResponse({'results': data})
+
+
 # Views for Departamento
 @login_required
 @grupo_requerido('Administrador', 'scompras')
@@ -542,7 +559,7 @@ def presupuesto_anual_detalle(request, presupuesto_id):
     presupuesto = get_object_or_404(PresupuestoAnual.objects.prefetch_related('renglones'), pk=presupuesto_id)
     user = request.user
     es_admin = user.is_superuser or user.groups.filter(name='Administrador').exists()
-    renglones = presupuesto.renglones.all()
+    renglones = presupuesto.renglones.select_related('producto', 'subproducto').all()
 
     if request.method == 'POST':
         if not presupuesto.activo:
