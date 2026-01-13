@@ -12,6 +12,7 @@
       font-family: Arial, sans-serif;
       font-size: 11px;
       margin: 0;
+      padding-bottom: 250px;
       color:#111;
     }
 
@@ -97,6 +98,14 @@
     }
     .center{ text-align:center; }
 
+    .force-single-page .table{
+      font-size:8px;
+    }
+    .force-single-page .table th,
+    .force-single-page .table td{
+      padding:2px 3px;
+    }
+
     /* ======================================================
        ✅ ZONA INFERIOR: BASE FIJA (NO CAMBIES ESTO)
        ====================================================== */
@@ -106,6 +115,7 @@
       right: 18px;
       bottom: 18px;
       height: 240px;  /* reserva de zona inferior */
+      page-break-inside: avoid;
     }
 
     /* ======================================================
@@ -181,7 +191,7 @@
   </style>
 </head>
 
-<body>
+<body class="force-single-page">
 
   <!-- ====== ENCABEZADO ====== -->
   <table class="hdr">
@@ -268,12 +278,10 @@
        ✅ ZONA INFERIOR FIJA (aquí se mueven por separado)
        ====================================================== -->
   <div class="bottom-area">
-<br>
     <!-- 1) JUSTIFICACIÓN -->
     <div id="justificacion">
       <strong>Justificación:</strong> {{ solicitud.descripcion }}
     </div>
-<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
     <!-- 2) FIRMAS -->
     <div id="firmas">
       <table class="firmas">
