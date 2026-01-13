@@ -690,9 +690,35 @@ def activar_presupuesto(request, presupuesto_id):
 @grupo_requerido('Administrador', 'scompras')
 def kardex_renglon(request, renglon_id):
     renglon = get_object_or_404(
-        PresupuestoRenglon.objects.select_related('presupuesto_anual'), pk=renglon_id
+        PresupuestoRenglon.objects.select_related(
+            'presupuesto_anual',
+            'producto',
+            'subproducto',
+        ),
+        pk=renglon_id,
     )
-    movimientos = renglon.kardex.select_related('solicitud').order_by('fecha', 'id')
+    producto_label = str(renglon.producto) if renglon.producto else 'Sin producto'
+    subproducto_label = str(renglon.subproducto) if renglon.subproducto else 'Sin subproducto'
+    descripcion = renglon.descripcion or '-'
+    titulo_detallado = (
+        f"Kardex del renglón {renglon.codigo_renglon} - {descripcion} | "
+        f"Producto: {producto_label} | Subproducto: {subproducto_label} "
+        f"({renglon.presupuesto_anual.anio})"
+    )
+    renglon_context_label = (
+        f"[{renglon.codigo_renglon}] {descripcion} — {producto_label} / {subproducto_label}"
+    )
+
+    movimientos = renglon.kardex.select_related(
+        'solicitud',
+        'transferencia',
+        'transferencia__renglon_origen',
+        'transferencia__renglon_origen__producto',
+        'transferencia__renglon_origen__subproducto',
+        'transferencia__renglon_destino',
+        'transferencia__renglon_destino__producto',
+        'transferencia__renglon_destino__subproducto',
+    ).order_by('fecha', 'id')
     tipo = request.GET.get('tipo')
     if tipo:
         movimientos = movimientos.filter(tipo=tipo)
@@ -704,6 +730,10 @@ def kardex_renglon(request, renglon_id):
             'movimientos': movimientos,
             'tipos': KardexPresupuesto.TipoMovimiento.choices,
             'tipo_filtrado': tipo,
+            'producto_label': producto_label,
+            'subproducto_label': subproducto_label,
+            'titulo_detallado': titulo_detallado,
+            'renglon_context_label': renglon_context_label,
         },
     )
 
