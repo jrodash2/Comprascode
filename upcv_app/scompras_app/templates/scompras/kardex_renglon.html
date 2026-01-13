@@ -1,13 +1,14 @@
 {% extends 'scompras/base.html' %}
-{% load static %}
+{% load static money %}
 
 {% block content %}
 <div class="page-body">
   <div class="container-fluid">
     <div class="page-title d-flex justify-content-between align-items-center">
       <div>
-        <h4>Kardex del renglón {{ renglon.codigo_renglon }} ({{ renglon.presupuesto_anual.anio }})</h4>
+        <h4>{{ titulo_detallado }}</h4>
         <p class="text-muted mb-0">Historial contable no editable.</p>
+        <p class="text-muted mb-0">{{ renglon.label_compacto }}</p>
       </div>
       <a class="btn btn-light" href="{% url 'scompras:presupuesto_anual_detalle' renglon.presupuesto_anual.id %}">Volver al presupuesto</a>
     </div>
@@ -54,9 +55,9 @@
                 <tr>
                   <td>{{ movimiento.fecha|date:'Y-m-d H:i' }}</td>
                   <td>{{ movimiento.get_tipo_display }}</td>
-                  <td class="text-end">{{ movimiento.monto }}</td>
-                  <td class="text-end">{{ movimiento.saldo_anterior }}</td>
-                  <td class="text-end">{{ movimiento.saldo_nuevo }}</td>
+                  <td class="text-end">{{ movimiento.monto|money_gtq }}</td>
+                  <td class="text-end">{{ movimiento.saldo_anterior|money_gtq }}</td>
+                  <td class="text-end">{{ movimiento.saldo_nuevo|money_gtq }}</td>
                   <td>
                     {% if movimiento.solicitud %}
                       <a href="{% url 'scompras:detalle_solicitud' movimiento.solicitud.id %}">
@@ -66,7 +67,16 @@
                       -
                     {% endif %}
                   </td>
-                  <td>{{ movimiento.referencia|default:'-' }}</td>
+                  <td>
+                    {% if movimiento.transferencia %}
+                      Transferencia #{{ movimiento.transferencia.id }}:
+                      {{ movimiento.transferencia.renglon_origen.label_compacto }}
+                      →
+                      {{ movimiento.transferencia.renglon_destino.label_compacto }}
+                    {% else %}
+                      {{ movimiento.referencia|default:'-' }} | {{ renglon.label_compacto }}
+                    {% endif %}
+                  </td>
                 </tr>
               {% empty %}
                 <tr>
