@@ -565,7 +565,7 @@ def presupuesto_anual_detalle(request, presupuesto_id):
         if not presupuesto.activo:
             messages.error(request, 'Solo el presupuesto activo permite crear renglones. Active este presupuesto primero.')
             return redirect('scompras:presupuesto_anual_detalle', presupuesto_id=presupuesto.id)
-        form = PresupuestoRenglonForm(request.POST)
+        form = PresupuestoRenglonForm(request.POST, presupuesto_anual=presupuesto)
         if form.is_valid():
             renglon = form.save(commit=False)
             renglon.presupuesto_anual = presupuesto
@@ -577,7 +577,7 @@ def presupuesto_anual_detalle(request, presupuesto_id):
                 messages.success(request, 'Renglón creado correctamente.')
                 return redirect('scompras:presupuesto_anual_detalle', presupuesto_id=presupuesto.id)
     else:
-        form = PresupuestoRenglonForm()
+        form = PresupuestoRenglonForm(presupuesto_anual=presupuesto)
 
     resumen = renglones.aggregate(
         total_inicial=Coalesce(Sum('monto_inicial'), Value(0, output_field=models.DecimalField(max_digits=14, decimal_places=2))),
@@ -607,7 +607,13 @@ def presupuesto_anual_detalle(request, presupuesto_id):
 def transferencias_list(request):
     presupuesto_activo = PresupuestoAnual.presupuesto_activo()
     transferencias = TransferenciaPresupuestaria.objects.select_related(
-        'renglon_origen', 'renglon_destino', 'presupuesto_anual'
+        'renglon_origen',
+        'renglon_origen__producto',
+        'renglon_origen__subproducto',
+        'renglon_destino',
+        'renglon_destino__producto',
+        'renglon_destino__subproducto',
+        'presupuesto_anual',
     )
     if presupuesto_activo:
         transferencias = transferencias.filter(presupuesto_anual=presupuesto_activo)

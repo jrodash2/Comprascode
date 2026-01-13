@@ -452,7 +452,11 @@ class CDPForm(forms.ModelForm):
         self.solicitud = solicitud
         super().__init__(*args, **kwargs)
         activo = PresupuestoAnual.presupuesto_activo()
-        queryset = PresupuestoRenglon.objects.select_related('presupuesto_anual').order_by('codigo_renglon')
+        queryset = PresupuestoRenglon.objects.select_related(
+            'presupuesto_anual',
+            'producto',
+            'subproducto',
+        ).order_by('codigo_renglon')
         if activo:
             queryset = queryset.filter(presupuesto_anual=activo)
         else:
@@ -461,7 +465,12 @@ class CDPForm(forms.ModelForm):
         self.presupuesto_activo = activo
         self.fields['renglon'].queryset = queryset
         self.fields['renglon'].label_from_instance = (
-            lambda obj: f"{obj.codigo_renglon} ({obj.presupuesto_anual.anio}) - Disponible: {obj.monto_disponible}"
+            lambda obj: (
+                f"[{obj.codigo_renglon}] {obj.descripcion or '-'} — "
+                f"Producto: {obj.producto.nombre if obj.producto else '-'} — "
+                f"Subproducto: {obj.subproducto.nombre if obj.subproducto else '-'} — "
+                f"Disponible: {obj.monto_disponible}"
+            )
         )
         for field in self.fields.values():
             field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' form-control'
@@ -528,6 +537,7 @@ class PresupuestoRenglonForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.presupuesto_anual = kwargs.pop('presupuesto_anual', None)
         super().__init__(*args, **kwargs)
         self.fields['subproducto'].queryset = Subproducto.objects.none()
         if 'producto' in self.data:
@@ -549,12 +559,25 @@ class PresupuestoRenglonForm(forms.ModelForm):
         cleaned = super().clean()
         producto = cleaned.get('producto')
         subproducto = cleaned.get('subproducto')
+        presupuesto_anual = self.presupuesto_anual or self.instance.presupuesto_anual
 
         if subproducto and not producto:
             cleaned['producto'] = subproducto.producto
             producto = cleaned['producto']
         if subproducto and producto and subproducto.producto_id != producto.id:
             raise ValidationError('El subproducto debe pertenecer al producto seleccionado.')
+
+        if presupuesto_anual and cleaned.get('codigo_renglon'):
+            existe = PresupuestoRenglon.objects.filter(
+                presupuesto_anual=presupuesto_anual,
+                codigo_renglon=cleaned['codigo_renglon'],
+                producto=producto,
+                subproducto=subproducto,
+            ).exclude(pk=self.instance.pk).exists()
+            if existe:
+                raise ValidationError(
+                    'Ya existe este renglón para el mismo producto/subproducto en este presupuesto.'
+                )
 
         return cleaned
 
@@ -647,9 +670,22 @@ class TransferenciaPresupuestariaForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         qs = PresupuestoRenglon.objects.none()
         if self.presupuesto_activo:
-            qs = PresupuestoRenglon.objects.filter(presupuesto_anual=self.presupuesto_activo)
+            qs = PresupuestoRenglon.objects.select_related(
+                'presupuesto_anual',
+                'producto',
+                'subproducto',
+            ).filter(presupuesto_anual=self.presupuesto_activo)
         self.fields['renglon_origen'].queryset = qs
         self.fields['renglon_destino'].queryset = qs
+        etiqueta = (
+            lambda obj: (
+                f"[{obj.codigo_renglon}] {obj.descripcion or '-'} — "
+                f"Producto: {obj.producto.nombre if obj.producto else '-'} — "
+                f"Subproducto: {obj.subproducto.nombre if obj.subproducto else '-'}"
+            )
+        )
+        self.fields['renglon_origen'].label_from_instance = etiqueta
+        self.fields['renglon_destino'].label_from_instance = etiqueta
         self.fields['descripcion'].label = 'Observación'
 
     def clean(self):

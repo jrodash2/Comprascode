@@ -280,8 +280,13 @@ class PresupuestoRenglon(models.Model):
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('presupuesto_anual', 'codigo_renglon')
         ordering = ['codigo_renglon']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['presupuesto_anual', 'codigo_renglon', 'producto', 'subproducto'],
+                name='uniq_presupuesto_codigo_producto_subproducto',
+            )
+        ]
 
     def __str__(self):
         return f"{self.codigo_renglon} - {self.presupuesto_anual.anio}"

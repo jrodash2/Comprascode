@@ -32,8 +32,16 @@
               {% for transferencia in transferencias %}
                 <tr>
                   <td>{{ transferencia.fecha|date:"d/m/Y H:i" }}</td>
-                  <td>{{ transferencia.renglon_origen.codigo_renglon }} ({{ transferencia.renglon_origen.presupuesto_anual.anio }})</td>
-                  <td>{{ transferencia.renglon_destino.codigo_renglon }} ({{ transferencia.renglon_destino.presupuesto_anual.anio }})</td>
+                  <td>
+                    [{{ transferencia.renglon_origen.codigo_renglon }}] {{ transferencia.renglon_origen.descripcion|default:'-' }}
+                    — Producto: {{ transferencia.renglon_origen.producto.nombre|default:'-' }}
+                    — Subproducto: {{ transferencia.renglon_origen.subproducto.nombre|default:'-' }}
+                  </td>
+                  <td>
+                    [{{ transferencia.renglon_destino.codigo_renglon }}] {{ transferencia.renglon_destino.descripcion|default:'-' }}
+                    — Producto: {{ transferencia.renglon_destino.producto.nombre|default:'-' }}
+                    — Subproducto: {{ transferencia.renglon_destino.subproducto.nombre|default:'-' }}
+                  </td>
                   <td class="text-end">{{ transferencia.monto|floatformat:2 }}</td>
                   <td>{{ transferencia.descripcion|default:'-' }}</td>
                 </tr>
