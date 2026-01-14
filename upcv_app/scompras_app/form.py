@@ -355,7 +355,7 @@ from .models import SolicitudCompra, Subproducto
 class SolicitudCompraForm(forms.ModelForm):
     class Meta:
         model = SolicitudCompra
-        fields = ['descripcion', 'producto', 'subproducto', 'prioridad', 'fecha_solicitud']
+        fields = ['descripcion', 'producto', 'subproducto', 'prioridad']
         widgets = {
             'descripcion': forms.Textarea(attrs={'class': 'form-control'}),
             'producto': forms.Select(attrs={'class': 'form-control', 'id': 'id_producto'}),

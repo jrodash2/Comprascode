@@ -71,12 +71,20 @@
 
 <!-- Botón Ver PDF (Solo cuando el estado es "Finalizada" o "Rechazada") -->
 {% if solicitud.estado == 'Finalizada' or solicitud.estado == 'Rechazada' %}
+  <!-- Botón Editar -->
+<button type="button" class="btn btn-light btn-sm"
+        data-bs-toggle="modal"
+        data-bs-target="#modalEditarSolicitud"
+        style="margin-top: 10px; background-color: #ffffff; color: #0068ab; font-weight: 600; border: none; border-radius: 5px; padding: 6px 12px; cursor:pointer;">
+  ✏️ Editar Solicitud
+</button>
   <button id="btnVerPDF" type="button" 
           class="btn btn-sm"
           style="margin-top: 10px; margin-left: 10px; background-color: #ffffff; color: #0068ab; font-weight: 600; border: none; border-radius: 5px; padding: 6px 12px; cursor:pointer;"
           onclick="window.open('{% url 'scompras:generar_pdf_solicitud' solicitud.id %}', '_blank')">
     🖨️ Imprimir Solicitud
   </button>
+
 {% endif %}
 
 
@@ -525,7 +533,7 @@
 </div>
 <div class="col-md-6 mb-3">
   
-    <input type="datetime-local" id="id_fecha_solicitud" name="fecha_solicitud" class="form-control" value="{{ solicitud.fecha_solicitud|date:'Y-m-d\TH:i' }}">
+    <!-- <input type="datetime-local" id="id_fecha_solicitud" name="fecha_solicitud" class="form-control" value="{{ solicitud.fecha_solicitud|date:'Y-m-d\TH:i' }}"> -->
 </div>
 
             <div class="col-md-12 mb-3">
