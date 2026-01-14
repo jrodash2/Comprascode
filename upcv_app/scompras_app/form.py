@@ -221,14 +221,44 @@ class DepartamentoForm(forms.ModelForm):
 class SeccionForm(forms.ModelForm):
     class Meta:
         model = Seccion
-        fields = ['nombre', 'abreviatura', 'descripcion', 'departamento', 'activo']
+        fields = [
+            'nombre',
+            'abreviatura',
+            'descripcion',
+            'departamento',
+            'firmante_nombre',
+            'firmante_cargo',
+            'activo',
+        ]
         widgets = {
             'nombre': forms.TextInput(attrs={'placeholder': 'Nombre de la Sección', 'class': 'form-control'}),
             'abreviatura': forms.TextInput(attrs={'placeholder': 'Abreviatura', 'class': 'form-control'}),
             'descripcion': forms.Textarea(attrs={'placeholder': 'Descripción', 'rows': 3, 'class': 'form-control'}),
             'departamento': forms.Select(attrs={'class': 'form-select'}),
+            'firmante_nombre': forms.TextInput(attrs={'placeholder': 'Nombre del firmante', 'class': 'form-control'}),
+            'firmante_cargo': forms.TextInput(attrs={'placeholder': 'Cargo del firmante', 'class': 'form-control'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+        labels = {
+            'firmante_nombre': 'Nombre del firmante',
+            'firmante_cargo': 'Cargo del firmante',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['firmante_nombre'].required = True
+        self.fields['firmante_cargo'].required = True
+
+    def clean(self):
+        cleaned_data = super().clean()
+        for field in ('firmante_nombre', 'firmante_cargo'):
+            value = cleaned_data.get(field, '')
+            if value is not None:
+                value = value.strip()
+            if not value:
+                self.add_error(field, 'Este campo es obligatorio.')
+            cleaned_data[field] = value
+        return cleaned_data
 
 class UserForm(forms.ModelForm):
     new_password = forms.CharField(
