@@ -149,6 +149,11 @@
 .w-pre { width:9%;  }
 .w-cup { width:12%; }
 .w-cop { width:10%; }
+.w-no  { width:5%; }
+.w-serv{ width:28%; }
+.w-det { width:25%; }
+.w-uni { width:10%; }
+.w-obs { width:22%; }
 
     .table th{
       background:#f2f2f2;
@@ -286,6 +291,53 @@
     {% endfor %}
   </tbody>
 </table>
+  <div class="subtitle">SERVICIOS SOLICITADOS</div>
+  {% if servicios %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th class="w-no">No.</th>
+        <th class="w-serv">Servicio</th>
+        <th class="w-det">Descripción / detalle</th>
+        <th class="w-cant">Cantidad</th>
+        <th class="w-uni">Unidad</th>
+        <th class="w-obs">Observación o característica especial</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for servicio in servicios %}
+      <tr>
+        <td class="center w-no">{{ forloop.counter }}</td>
+        <td class="w-serv">
+          {% if servicio.servicio.concepto %}
+            {{ servicio.servicio.concepto|linebreaksbr }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td class="w-det">
+          {% if servicio.observacion %}
+            {{ servicio.observacion|linebreaksbr }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td class="center w-cant">{{ servicio.cantidad|default:"—" }}</td>
+        <td class="center w-uni">{{ servicio.servicio.unidad_medida|default:"—" }}</td>
+        <td class="w-obs">
+          {% if servicio.servicio.caracteristica_especial %}
+            {{ servicio.servicio.caracteristica_especial|linebreaksbr }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="ptext">No hay servicios solicitados.</p>
+  {% endif %}
 <br>
  <div id="justificacion">
     <strong>Justificación:</strong> {{ solicitud.descripcion }}
