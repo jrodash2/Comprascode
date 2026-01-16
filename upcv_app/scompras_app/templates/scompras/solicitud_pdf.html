@@ -149,11 +149,6 @@
 .w-pre { width:9%;  }
 .w-cup { width:12%; }
 .w-cop { width:10%; }
-.w-no  { width:5%; }
-.w-serv{ width:28%; }
-.w-det { width:25%; }
-.w-uni { width:10%; }
-.w-obs { width:22%; }
 
     .table th{
       background:#f2f2f2;
@@ -225,18 +220,26 @@
     </td>
 
     <td width="34%">
-      <span class="box-title">Unidad solicitante</span>
+  <span class="box-title">Unidad solicitante</span>
 
-      <div class="row">
-        <span class="label">Depto.:</span>
-        <span class="value">{{ solicitud.seccion.departamento.nombre }}</span>
-      </div>
+  {% if solicitud.seccion.departamento.nombre == solicitud.seccion.nombre %}
+    <div class="row">
+      <span class="label"></span>
+      <span class="value">{{ solicitud.seccion.nombre }}</span>
+    </div>
+  {% else %}
+    <div class="row">
+      <span class="label"></span>
+      <span class="value">{{ solicitud.seccion.departamento.nombre }}</span>
+    </div>
 
-      <div class="row">
-        <span class="label">Sección:</span>
-        <span class="value">{{ solicitud.seccion.nombre }}</span>
-      </div>
-    </td>
+    <div class="row">
+      <span class="label"></span>
+      <span class="value">{{ solicitud.seccion.nombre }}</span>
+    </div>
+  {% endif %}
+</td>
+
 
     <td width="33%">
       <span class="box-title">Clasificación presupuestaria</span>
@@ -274,89 +277,57 @@
     </tr>
   </thead>
 
-  <tbody>
-    {% if detalles or servicios_pdf %}
-      {% for detalle in detalles %}
-      <tr>
-        <td class="center w-cant">{{ detalle.cantidad }}</td>
-        <td class="center w-reng">{{ detalle.renglon|default:detalle.insumo.renglon|default:"-" }}</td>
+<tbody>
+  {# ===== INSUMOS ===== #}
+  {% for detalle in detalles %}
+  <tr>
+    <td class="center w-cant">{{ detalle.cantidad }}</td>
+    <td class="center w-reng">{{ detalle.renglon|default:detalle.insumo.renglon|default:"-" }}</td>
 
-        <td class="w-nom">{{ detalle.insumo.nombre }}</td>
-        <td class="w-car">{{ detalle.insumo.caracteristicas|default:"-" }}</td>
-        <td class="w-esp">{{ detalle.caracteristica_especial|default:"-" }}</td>
-        <td class="center w-pre">{{ detalle.insumo.nombre_presentacion|default:"-" }}</td>
-        <td class="center w-cup">{{ detalle.insumo.cantidad_unidad_presentacion|default:"-" }}</td>
-              <td class="center w-cod">{{ detalle.insumo.codigo_insumo }}</td>
-        <td class="center w-cop">{{ detalle.insumo.codigo_presentacion|default:"-" }}</td>
-      </tr>
-      {% endfor %}
-      {% for servicio in servicios_pdf %}
-      <tr>
-        <td class="center w-cant">{{ servicio.cantidad|default:"—" }}</td>
-        <td class="center w-reng">{{ servicio.renglon|default:"—" }}</td>
-        <td class="center w-cod">—</td>
-        <td class="w-nom">{{ servicio.concepto_html|safe }}</td>
-        <td class="w-car">—</td>
-        <td class="w-esp">{{ servicio.caracteristica_especial|default:"—" }}</td>
-        <td class="center w-pre">{{ servicio.unidad_medida|default:"—" }}</td>
-        <td class="center w-cup">—</td>
-        <td class="center w-cop">—</td>
-      </tr>
-      {% endfor %}
-    {% else %}
-      <tr>
-        <td colspan="9" class="center">No hay insumos ni servicios agregados.</td>
-      </tr>
-    {% endif %}
-  </tbody>
-</table>
-  <div class="subtitle">SERVICIOS SOLICITADOS</div>
-  {% if servicios %}
-  <table class="table">
-    <thead>
-      <tr>
-        <th class="w-no">No.</th>
-        <th class="w-serv">Servicio</th>
-        <th class="w-det">Descripción / detalle</th>
-        <th class="w-cant">Cantidad</th>
-        <th class="w-uni">Unidad</th>
-        <th class="w-obs">Observación o característica especial</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for servicio in servicios %}
-      <tr>
-        <td class="center w-no">{{ forloop.counter }}</td>
-        <td class="w-serv">
-          {% if servicio.servicio.concepto %}
-            {{ servicio.servicio.concepto|linebreaksbr }}
-          {% else %}
-            —
-          {% endif %}
-        </td>
-        <td class="w-det">
-          {% if servicio.observacion %}
-            {{ servicio.observacion|linebreaksbr }}
-          {% else %}
-            —
-          {% endif %}
-        </td>
-        <td class="center w-cant">{{ servicio.cantidad|default:"—" }}</td>
-        <td class="center w-uni">{{ servicio.servicio.unidad_medida|default:"—" }}</td>
-        <td class="w-obs">
-          {% if servicio.servicio.caracteristica_especial %}
-            {{ servicio.servicio.caracteristica_especial|linebreaksbr }}
-          {% else %}
-            —
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-    <p class="ptext">No hay servicios solicitados.</p>
+    <td class="w-nom">{{ detalle.insumo.nombre }}</td>
+    <td class="w-car">{{ detalle.insumo.caracteristicas|default:"-" }}</td>
+    <td class="w-esp">{{ detalle.caracteristica_especial|default:"-" }}</td>
+    <td class="center w-pre">{{ detalle.insumo.nombre_presentacion|default:"-" }}</td>
+    <td class="center w-cup">{{ detalle.insumo.cantidad_unidad_presentacion|default:"-" }}</td>
+    <td class="center w-cod">{{ detalle.insumo.codigo_insumo }}</td>
+    <td class="center w-cop">{{ detalle.insumo.codigo_presentacion|default:"-" }}</td>
+  </tr>
+  {% endfor %}
+
+  {# ===== SERVICIOS ===== #}
+  {% for s in servicios %}
+  <tr>
+    <td class="center w-cant">{{ s.cantidad|default:"-" }}</td>
+    <td class="center w-reng">{{ s.servicio.renglon|default:"-" }}</td>
+
+    <td class="w-nom">
+      {% if s.servicio.concepto %}
+        {% for linea in s.servicio.concepto.splitlines %}
+          {% if linea.strip %}{{ linea }}{% if not forloop.last %}<br/>{% endif %}{% endif %}
+        {% endfor %}
+      {% else %}
+        -
+      {% endif %}
+    </td>
+
+    <td class="w-car">-</td>
+    <td class="w-esp">{{ s.servicio.caracteristica_especial|default:"-" }}</td>
+    <td class="center w-pre">{{ s.servicio.unidad_medida|default:"-" }}</td>
+    <td class="center w-cup">-</td>
+    <td class="center w-cod">-</td>
+    <td class="center w-cop">-</td>
+  </tr>
+  {% endfor %}
+
+  {# Si no hay nada #}
+  {% if not detalles and not servicios %}
+  <tr>
+    <td colspan="9" class="center">No hay insumos ni servicios agregados.</td>
+  </tr>
   {% endif %}
+</tbody>
+
+</table>
 <br>
  <div id="justificacion">
     <strong>Justificación:</strong> {{ solicitud.descripcion }}

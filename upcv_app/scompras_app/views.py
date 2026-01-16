@@ -1334,42 +1334,42 @@ def link_callback(uri, rel):
         return uri
 
     return uri
-
-
-from io import BytesIO
+from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 from django.template.loader import render_to_string
+from django.utils.timezone import localtime
+from django.template.defaultfilters import date as django_date
 from xhtml2pdf import pisa
 
 def generar_pdf_solicitud(request, solicitud_id):
-    solicitud = SolicitudCompra.objects.get(id=solicitud_id)
-    detalles = InsumoSolicitud.objects.filter(solicitud=solicitud).select_related('insumo')
-    servicios = ServicioSolicitud.objects.filter(solicitud=solicitud).select_related('servicio')
-    servicios_pdf = []
-    for servicio in servicios:
-        servicio_ref = getattr(servicio, 'servicio', None)
-        concepto = getattr(servicio_ref, 'concepto', '') if servicio_ref else ''
-        concepto_html = (concepto or '—').replace('\r\n', '<br/>').replace('\n', '<br/>')
-        servicios_pdf.append({
-            'cantidad': servicio.cantidad if servicio.cantidad is not None else '—',
-            'renglon': getattr(servicio_ref, 'renglon', None) or '—',
-            'concepto_html': concepto_html,
-            'caracteristica_especial': (
-                getattr(servicio_ref, 'caracteristica_especial', None)
-                # ServicioSolicitud no define caracteristica_especial, se usa fallback seguro.
-                or getattr(servicio, 'caracteristica_especial', None)
-                or '—'
-            ),
-            'unidad_medida': getattr(servicio_ref, 'unidad_medida', None) or '—',
-        })
+    solicitud = get_object_or_404(SolicitudCompra, id=solicitud_id)
+
+    # Igual que la DetailView (zona horaria + formato)
+    solicitud.fecha_solicitud = localtime(solicitud.fecha_solicitud)
+    fecha_solicitud_formateada = django_date(solicitud.fecha_solicitud, 'j \\d\\e F \\d\\e Y')
+
+    detalles = (
+        InsumoSolicitud.objects
+        .filter(solicitud=solicitud)
+        .select_related('insumo')
+    )
+    servicios = (
+        ServicioSolicitud.objects
+        .filter(solicitud=solicitud)
+        .select_related('servicio')
+    )
+
     institucion = Institucion.objects.first()
 
     context = {
         'solicitud': solicitud,
+        'fecha_solicitud_formateada': fecha_solicitud_formateada,
         'detalles': detalles,
         'servicios': servicios,
-        'servicios_pdf': servicios_pdf,
         'institucion': institucion,
+        # DEBUG opcional: te sirve para confirmar conteos en PDF
+        # 'debug_detalles_count': detalles.count(),
+        # 'debug_servicios_count': servicios.count(),
     }
 
     html = render_to_string('scompras/solicitud_pdf.html', context)
@@ -1381,13 +1381,14 @@ def generar_pdf_solicitud(request, solicitud_id):
         src=html,
         dest=response,
         encoding='utf-8',
-        link_callback=link_callback
+        link_callback=link_callback  # ✅ CLAVE para static/media
     )
 
     if pisa_status.err:
         return HttpResponse("Error al generar el PDF", status=500)
 
     return response
+
 
 
 @login_required
