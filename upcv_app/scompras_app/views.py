@@ -1343,12 +1343,32 @@ from xhtml2pdf import pisa
 
 def generar_pdf_solicitud(request, solicitud_id):
     solicitud = SolicitudCompra.objects.get(id=solicitud_id)
-    detalles = InsumoSolicitud.objects.filter(solicitud=solicitud)
+    detalles = InsumoSolicitud.objects.filter(solicitud=solicitud).select_related('insumo')
+    servicios = ServicioSolicitud.objects.filter(solicitud=solicitud).select_related('servicio')
+    servicios_pdf = []
+    for servicio in servicios:
+        servicio_ref = getattr(servicio, 'servicio', None)
+        concepto = getattr(servicio_ref, 'concepto', '') if servicio_ref else ''
+        concepto_html = (concepto or '—').replace('\r\n', '<br/>').replace('\n', '<br/>')
+        servicios_pdf.append({
+            'cantidad': servicio.cantidad if servicio.cantidad is not None else '—',
+            'renglon': getattr(servicio_ref, 'renglon', None) or '—',
+            'concepto_html': concepto_html,
+            'caracteristica_especial': (
+                getattr(servicio_ref, 'caracteristica_especial', None)
+                # ServicioSolicitud no define caracteristica_especial, se usa fallback seguro.
+                or getattr(servicio, 'caracteristica_especial', None)
+                or '—'
+            ),
+            'unidad_medida': getattr(servicio_ref, 'unidad_medida', None) or '—',
+        })
     institucion = Institucion.objects.first()
 
     context = {
         'solicitud': solicitud,
         'detalles': detalles,
+        'servicios': servicios,
+        'servicios_pdf': servicios_pdf,
         'institucion': institucion,
     }
 
