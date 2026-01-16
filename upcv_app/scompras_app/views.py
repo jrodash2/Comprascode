@@ -77,7 +77,7 @@ from .utils import grupo_requerido
 from .services.presupuesto_import import import_rows, read_rows
 from django.views.decorators.http import require_GET
 from django.db.models.functions import Coalesce
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.db.models import Sum
 from django.shortcuts import render
 from django.template.loader import render_to_string
@@ -1072,6 +1072,9 @@ from django.db.models import Count
 
 @receiver(pre_save, sender=SolicitudCompra)
 def generar_codigo_correlativo(sender, instance, **kwargs):
+    # Solo generar el correlativo en creación o si quedó vacío, nunca en edición.
+    if instance.pk and instance.codigo_correlativo:
+        return
     # Asegurarse de que 'fecha_solicitud' esté definida antes de acceder al año
     if not instance.fecha_solicitud:
         return  # Si no hay fecha, no generar el código
@@ -1234,10 +1237,21 @@ def editar_solicitud(request):
     form = SolicitudCompraForm(request.POST, instance=solicitud)
 
     if form.is_valid():
-        form.save()
+        try:
+            solicitud_actualizada = form.save(commit=False)
+            # Preservar el correlativo original en edición para evitar regeneración.
+            solicitud_actualizada.codigo_correlativo = solicitud.codigo_correlativo
+            solicitud_actualizada.save()
+        except IntegrityError:
+            return JsonResponse(
+                {'success': False, 'error': 'Ya existe una solicitud con ese correlativo.'}
+            )
+        except ValidationError as exc:
+            errores = exc.message_dict if hasattr(exc, "message_dict") else exc.messages
+            return JsonResponse({'success': False, 'errors': errores})
         return JsonResponse({'success': True})
-    else:
-        return JsonResponse({'success': False, 'errors': form.errors})
+
+    return JsonResponse({'success': False, 'errors': form.errors})
 
 @login_required
 @csrf_exempt
