@@ -1344,11 +1344,13 @@ from xhtml2pdf import pisa
 def generar_pdf_solicitud(request, solicitud_id):
     solicitud = SolicitudCompra.objects.get(id=solicitud_id)
     detalles = InsumoSolicitud.objects.filter(solicitud=solicitud)
+    servicios = ServicioSolicitud.objects.filter(solicitud=solicitud).select_related('servicio')
     institucion = Institucion.objects.first()
 
     context = {
         'solicitud': solicitud,
         'detalles': detalles,
+        'servicios': servicios,
         'institucion': institucion,
     }
 
