@@ -873,6 +873,55 @@ $(document).ready(function () {
         });
     }
 
+    if (puedeEditarCaracteristica) {
+        $(document).on('click', '.editable-caracteristica', function () {
+            caracteristicaActual = $(this);
+            $('#inputTipoCaracteristica').val(caracteristicaActual.data('tipo'));
+            $('#inputIdCaracteristica').val(caracteristicaActual.data('id'));
+            $('#inputCaracteristicaEspecial').val(caracteristicaActual.data('valor') || '');
+            $('#modalEditarCaracteristica').modal('show');
+        });
+
+        $('#btnGuardarCaracteristica').on('click', function () {
+            const tipo = $('#inputTipoCaracteristica').val();
+            const id = $('#inputIdCaracteristica').val();
+            const valor = $('#inputCaracteristicaEspecial').val().trim();
+
+            if (!tipo || !id) {
+                showModalAlert('No se pudo identificar el registro a editar.', 'Validación');
+                return;
+            }
+
+            $.ajax({
+                url: '{% url "scompras:actualizar_caracteristica_especial" %}',
+                type: 'POST',
+                data: {
+                    tipo,
+                    id,
+                    caracteristica_especial: valor,
+                    csrfmiddlewaretoken: csrftoken,
+                },
+                success: function (response) {
+                    if (response.success) {
+                        const texto = response.caracteristica_especial || '-';
+                        if (caracteristicaActual) {
+                            caracteristicaActual
+                                .text(texto)
+                                .attr('data-valor', response.caracteristica_especial || '');
+                        }
+                        $('#modalEditarCaracteristica').modal('hide');
+                        showModalAlert('Actualizado correctamente.', 'Acción realizada');
+                    } else {
+                        showModalAlert('Error: ' + response.error, 'No se pudo actualizar');
+                    }
+                },
+                error: function (xhr) {
+                    showModalAlert('Error en el servidor. Código: ' + xhr.status, 'Error de conexión');
+                }
+            });
+        });
+    }
+
     /* === IMPRIMIR PDF === */
     const btnImprimir = document.getElementById("btnImprimir");
     if (btnImprimir) {
