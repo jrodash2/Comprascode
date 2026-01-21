@@ -855,6 +855,7 @@ class SolicitudCompraDetailView(DetailView):
             and not context['tiene_cdo']
             and context['cdps_reservados'].exists()
         )
+        context['puede_editar_caracteristica'] = solicitud.estado in ['Creada', 'Finalizada']
 
         return context
 
@@ -1146,6 +1147,88 @@ def eliminar_servicio_solicitud(request, servicio_id):
         return JsonResponse({"success": False, "error": str(e)})
 
 
+@login_required
+@require_POST
+def actualizar_caracteristica_insumo(request, detalle_id):
+    if request.content_type == 'application/json':
+        try:
+            data = json.loads(request.body.decode('utf-8') or '{}')
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Solicitud inválida.'})
+    else:
+        data = request.POST
+
+    caracteristica_especial = data.get('caracteristica_especial', '')
+    if caracteristica_especial is None:
+        caracteristica_especial = ''
+    caracteristica_especial = caracteristica_especial.strip()
+
+    if len(caracteristica_especial) > 1000:
+        return JsonResponse({'success': False, 'error': 'La característica especial supera el máximo permitido.'})
+
+    try:
+        detalle = InsumoSolicitud.objects.select_related('solicitud').get(id=detalle_id)
+        solicitud = detalle.solicitud
+        if solicitud.estado not in ['Creada', 'Finalizada']:
+            return JsonResponse(
+                {'success': False, 'error': 'Solo se permite editar en estado Creada o Finalizada.'}
+            )
+        detalle.caracteristica_especial = caracteristica_especial
+        detalle.save(update_fields=['caracteristica_especial'])
+    except InsumoSolicitud.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Registro no encontrado.'})
+    except ValidationError as exc:
+        mensaje = exc.messages[0] if hasattr(exc, "messages") else str(exc)
+        return JsonResponse({'success': False, 'error': mensaje})
+    except Exception as exc:
+        return JsonResponse({'success': False, 'error': str(exc)})
+
+    return JsonResponse(
+        {'success': True, 'caracteristica_especial': caracteristica_especial}
+    )
+
+
+@login_required
+@require_POST
+def actualizar_caracteristica_servicio(request, servicio_id):
+    if request.content_type == 'application/json':
+        try:
+            data = json.loads(request.body.decode('utf-8') or '{}')
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Solicitud inválida.'})
+    else:
+        data = request.POST
+
+    caracteristica_especial = data.get('caracteristica_especial', '')
+    if caracteristica_especial is None:
+        caracteristica_especial = ''
+    caracteristica_especial = caracteristica_especial.strip()
+
+    if len(caracteristica_especial) > 1000:
+        return JsonResponse({'success': False, 'error': 'La característica especial supera el máximo permitido.'})
+
+    try:
+        servicio_solicitud = ServicioSolicitud.objects.select_related('solicitud').get(id=servicio_id)
+        solicitud = servicio_solicitud.solicitud
+        if solicitud.estado not in ['Creada', 'Finalizada']:
+            return JsonResponse(
+                {'success': False, 'error': 'Solo se permite editar en estado Creada o Finalizada.'}
+            )
+        servicio_solicitud.caracteristica_especial = caracteristica_especial
+        servicio_solicitud.save(update_fields=['caracteristica_especial'])
+    except ServicioSolicitud.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Registro no encontrado.'})
+    except ValidationError as exc:
+        mensaje = exc.messages[0] if hasattr(exc, "messages") else str(exc)
+        return JsonResponse({'success': False, 'error': mensaje})
+    except Exception as exc:
+        return JsonResponse({'success': False, 'error': str(exc)})
+
+    return JsonResponse(
+        {'success': True, 'caracteristica_especial': caracteristica_especial}
+    )
+
+
 @require_POST
 def agregar_insumo_solicitud(request):
     solicitud_id = request.POST.get('solicitud_id')
@@ -1218,6 +1301,7 @@ def detalle_solicitud(request, solicitud_id):
         'productos': productos,
         'subproductos': subproductos,
         'servicios': servicios,
+        'puede_editar_caracteristica': solicitud.estado in ['Creada', 'Finalizada'],
     })
 
 def obtener_subproductos(request, producto_id):
@@ -1732,6 +1816,7 @@ def agregar_servicio_solicitud(request):
                 solicitud=solicitud,
                 servicio=servicio,
                 cantidad=cantidad,
+                caracteristica_especial=caracteristica_especial or None,
             )
 
             return JsonResponse({"success": True})
