@@ -1132,20 +1132,19 @@ def eliminar_detalle_solicitud(request, detalle_id):
 
 
 
-@csrf_exempt
-def eliminar_servicio_solicitud(request, servicio_id):
-    if request.method == "POST":
-        try:
-            servicio = ServicioSolicitud.objects.get(id=servicio_id)
-            servicio.delete()
-            return JsonResponse({"success": True})
-        except ServicioSolicitud.DoesNotExist:
-            return JsonResponse({"success": False, "error": "Servicio no encontrado"})
-        except Exception as e:
-            return JsonResponse({"success": False, "error": str(e)})
-    return JsonResponse({"success": False, "error": "Método no permitido"})
+from django.views.decorators.http import require_POST
 
-from django.forms.models import model_to_dict
+@require_POST
+def eliminar_servicio_solicitud(request, servicio_id):
+    try:
+        servicio = ServicioSolicitud.objects.get(id=servicio_id)
+        servicio.delete()
+        return JsonResponse({"success": True})
+    except ServicioSolicitud.DoesNotExist:
+        return JsonResponse({"success": False, "error": "Servicio no encontrado"})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+
 
 @require_POST
 def agregar_insumo_solicitud(request):
@@ -1304,9 +1303,12 @@ def rechazar_solicitud(request):
             # Obtener la solicitud con el ID proporcionado, si no existe, devolver un error 404
             solicitud = get_object_or_404(SolicitudCompra, id=solicitud_id)
 
-            # Verificar si la solicitud tiene un estado válido para ser rechazada
-            if solicitud.estado != 'Creada':
-                return JsonResponse({"success": False, "error": "La solicitud solo puede rechazarse una vez desde estado 'Creada'."})
+           # Verificar si la solicitud tiene un estado válido para ser rechazada
+            if solicitud.estado not in ['Creada', 'Finalizada']:
+                return JsonResponse({
+                    "success": False,
+                    "error": "La solicitud solo puede anularse desde estado 'Creada' o 'Finalizada'."
+                })
 
             # Actualizar el estado a "Rechazada"
             solicitud.estado = "Rechazada"
