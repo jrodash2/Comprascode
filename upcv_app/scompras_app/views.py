@@ -68,6 +68,7 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.db import models
 from django.db.models import Sum, F, Value, Count, Q, Case, When, OuterRef, Subquery, IntegerField, DecimalField, ExpressionWrapper
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.views import redirect_to_login
 from collections import defaultdict
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
@@ -1147,9 +1148,38 @@ def eliminar_servicio_solicitud(request, servicio_id):
         return JsonResponse({"success": False, "error": str(e)})
 
 
-@login_required
+def _es_peticion_ajax(request):
+    return (
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+        or request.accepts("application/json")
+    )
+
+
+def _usuario_puede_editar(request):
+    user = request.user
+    if not user.is_authenticated:
+        return False
+    return user.is_superuser or user.groups.filter(name__in=['Administrador', 'scompras']).exists()
+
+
+def _respuesta_sin_permiso(request, mensaje):
+    if _es_peticion_ajax(request):
+        return JsonResponse({'success': False, 'error': mensaje}, status=403)
+    return redirect(reverse('scompras:acceso_denegado'))
+
+
+def _respuesta_no_autenticado(request):
+    if _es_peticion_ajax(request):
+        return JsonResponse({'success': False, 'error': 'Debe iniciar sesión.'}, status=403)
+    return redirect_to_login(request.get_full_path())
+
+
 @require_POST
 def actualizar_caracteristica_insumo(request, detalle_id):
+    if not request.user.is_authenticated:
+        return _respuesta_no_autenticado(request)
+    if not _usuario_puede_editar(request):
+        return _respuesta_sin_permiso(request, 'No tiene permisos para editar.')
     if request.content_type == 'application/json':
         try:
             data = json.loads(request.body.decode('utf-8') or '{}')
@@ -1188,9 +1218,12 @@ def actualizar_caracteristica_insumo(request, detalle_id):
     )
 
 
-@login_required
 @require_POST
 def actualizar_caracteristica_servicio(request, servicio_id):
+    if not request.user.is_authenticated:
+        return _respuesta_no_autenticado(request)
+    if not _usuario_puede_editar(request):
+        return _respuesta_sin_permiso(request, 'No tiene permisos para editar.')
     if request.content_type == 'application/json':
         try:
             data = json.loads(request.body.decode('utf-8') or '{}')
@@ -1229,9 +1262,12 @@ def actualizar_caracteristica_servicio(request, servicio_id):
     )
 
 
-@login_required
 @require_POST
 def actualizar_caracteristica_especial(request):
+    if not request.user.is_authenticated:
+        return _respuesta_no_autenticado(request)
+    if not _usuario_puede_editar(request):
+        return _respuesta_sin_permiso(request, 'No tiene permisos para editar.')
     if request.content_type == 'application/json':
         try:
             data = json.loads(request.body.decode('utf-8') or '{}')
