@@ -790,11 +790,87 @@ $(document).ready(function () {
             .replace(/'/g, '&#39;');
     }
 
+    const alertaModalElement = document.getElementById('modalAlerta');
+    const alertaModal = new bootstrap.Modal(alertaModalElement);
+    const alertaFooter = alertaModalElement.querySelector('.modal-footer');
+
     function showModalAlert(mensaje, subtitulo = "Notificación del sistema") {
         $('#alerta-mensaje').text(mensaje);
         $('#alerta-subtitulo').text(subtitulo);
-        const modal = new bootstrap.Modal(document.getElementById('modalAlerta'));
-        modal.show();
+        if (alertaFooter) {
+            alertaFooter.style.display = '';
+        }
+        alertaModal.show();
+    }
+
+    function showModalAlertAutoClose(mensaje, subtitulo = "Notificación del sistema", timeout = 1200) {
+        $('#alerta-mensaje').text(mensaje);
+        $('#alerta-subtitulo').text(subtitulo);
+        if (alertaFooter) {
+            alertaFooter.style.display = 'none';
+        }
+        alertaModal.show();
+        setTimeout(() => {
+            alertaModal.hide();
+        }, timeout);
+    }
+
+    if (puedeEditarCaracteristica) {
+        $(document).on('click', '.editable-caracteristica', function () {
+            caracteristicaActual = $(this);
+            const tipo = caracteristicaActual.data('tipo');
+            const id = caracteristicaActual.data('id');
+            let valor = caracteristicaActual.data('valor');
+            if (!valor) {
+                const textoVisible = caracteristicaActual.text().trim();
+                valor = textoVisible === '-' ? '' : textoVisible;
+            }
+            $('#inputTipoCaracteristica').val(tipo);
+            $('#inputIdCaracteristica').val(id);
+            $('#inputCaracteristicaEspecial').val(valor || '');
+            $('#modalEditarCaracteristica').modal('show');
+        });
+
+        $('#btnGuardarCaracteristica').on('click', function () {
+            const tipo = $('#inputTipoCaracteristica').val();
+            const id = $('#inputIdCaracteristica').val();
+            const valor = $('#inputCaracteristicaEspecial').val().trim();
+
+            if (!tipo || !id) {
+                showModalAlert('No se pudo identificar el registro a editar.', 'Validación');
+                return;
+            }
+
+            const url = tipo === 'insumo'
+                ? '{% url "scompras:actualizar_caracteristica_insumo" detalle_id=0 %}'.replace('0', id)
+                : '{% url "scompras:actualizar_caracteristica_servicio" servicio_id=0 %}'.replace('0', id);
+
+            $.ajax({
+                url,
+                type: 'POST',
+                data: {
+                    caracteristica_especial: valor,
+                    csrfmiddlewaretoken: csrftoken,
+                },
+                success: function (response) {
+                    if (response.success) {
+                        const texto = response.caracteristica_especial || '-';
+                        if (caracteristicaActual) {
+                            caracteristicaActual
+                                .text(texto)
+                                .attr('data-valor', response.caracteristica_especial || '');
+                        }
+                        $('#modalEditarCaracteristica').modal('hide');
+                        showModalAlertAutoClose('Actualizado correctamente.', 'Acción realizada');
+                    } else {
+                        showModalAlert('Error: ' + response.error, 'No se pudo actualizar');
+                    }
+                },
+                error: function (xhr) {
+                    showModalAlert('Error en el servidor. Código: ' + xhr.status, 'Error de conexión');
+                }
+            });
+        });
     }
 
     if (puedeEditarCaracteristica) {
