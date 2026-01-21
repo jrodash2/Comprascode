@@ -289,12 +289,6 @@
     text-decoration: underline;
   }
 
-  .editable-caracteristica:hover::after {
-    content: "✏️ Editar";
-    font-size: 10px;
-    margin-left: 6px;
-    color: inherit;
-  }
   
 </style>
 
@@ -885,6 +879,7 @@ $(document).ready(function () {
                         }
                         $('#modalEditarCaracteristica').modal('hide');
                         showModalAlertAutoClose('Actualizado correctamente.', 'Acción realizada');
+                        setTimeout(() => location.reload(), 500);
                     } else {
                         showModalAlert('Error: ' + response.error, 'No se pudo actualizar');
                     }
