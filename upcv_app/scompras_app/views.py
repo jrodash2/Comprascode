@@ -1229,6 +1229,29 @@ def actualizar_caracteristica_servicio(request, servicio_id):
     )
 
 
+@login_required
+@require_POST
+def actualizar_caracteristica_especial(request):
+    if request.content_type == 'application/json':
+        try:
+            data = json.loads(request.body.decode('utf-8') or '{}')
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Solicitud inválida.'})
+    else:
+        data = request.POST
+
+    tipo = data.get('tipo')
+    registro_id = data.get('id')
+    if not tipo or not registro_id:
+        return JsonResponse({'success': False, 'error': 'Parámetros incompletos.'})
+
+    if tipo == 'insumo':
+        return actualizar_caracteristica_insumo(request, registro_id)
+    if tipo == 'servicio':
+        return actualizar_caracteristica_servicio(request, registro_id)
+    return JsonResponse({'success': False, 'error': 'Tipo inválido.'})
+
+
 @require_POST
 def agregar_insumo_solicitud(request):
     solicitud_id = request.POST.get('solicitud_id')

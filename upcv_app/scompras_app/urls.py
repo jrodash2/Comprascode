@@ -65,6 +65,11 @@ urlpatterns = [
     path('solicitudes/<int:solicitud_id>/cdp/liberar-todos/', views.liberar_cdps_solicitud, name='liberar_cdps_solicitud'),
     path('solicitud/eliminar_insumo/<int:detalle_id>/', views.eliminar_detalle_solicitud, name='eliminar_detalle_solicitud'),
     path(
+        'actualizar-caracteristica-especial/',
+        views.actualizar_caracteristica_especial,
+        name='actualizar_caracteristica_especial',
+    ),
+    path(
         'actualizar-caracteristica-insumo/<int:detalle_id>/',
         views.actualizar_caracteristica_insumo,
         name='actualizar_caracteristica_insumo',
