@@ -324,7 +324,11 @@
           <td style="font-size:10px;">{{ detalle.insumo.caracteristicas|default:"-" }}</td>
           <td style="font-size:10px;">
             {% if puede_editar_caracteristica %}
-              <span class="editable-caracteristica"
+              <span class="editable-caracteristica caracteristica-editable"
+                    style="cursor:pointer;"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="top"
+                    title="Clic para editar"
                     data-tipo="insumo"
                     data-id="{{ detalle.id }}"
                     data-valor="{{ detalle.caracteristica_especial|default_if_none:''|escape }}">
@@ -371,7 +375,11 @@
           <td style="font-size:10px;">
             {% with valor_caracteristica=servicio.caracteristica_especial|default_if_none:servicio.servicio.caracteristica_especial %}
               {% if puede_editar_caracteristica %}
-                <span class="editable-caracteristica"
+                <span class="editable-caracteristica caracteristica-editable"
+                      style="cursor:pointer;"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="Clic para editar"
                       data-tipo="servicio"
                       data-id="{{ servicio.id }}"
                       data-valor="{{ valor_caracteristica|default_if_none:''|escape }}">
@@ -794,6 +802,20 @@ $(document).ready(function () {
     const alertaModal = new bootstrap.Modal(alertaModalElement);
     const alertaFooter = alertaModalElement.querySelector('.modal-footer');
 
+    function initTooltips(scope) {
+        const container = scope || document;
+        const tooltipElements = container.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipElements.forEach((element) => {
+            const existing = bootstrap.Tooltip.getInstance(element);
+            if (existing) {
+                existing.dispose();
+            }
+            new bootstrap.Tooltip(element);
+        });
+    }
+
+    initTooltips();
+
     function showModalAlert(mensaje, subtitulo = "Notificación del sistema") {
         $('#alerta-mensaje').text(mensaje);
         $('#alerta-subtitulo').text(subtitulo);
@@ -859,6 +881,7 @@ $(document).ready(function () {
                             caracteristicaActual
                                 .text(texto)
                                 .attr('data-valor', response.caracteristica_especial || '');
+                            initTooltips(caracteristicaActual.get(0));
                         }
                         $('#modalEditarCaracteristica').modal('hide');
                         showModalAlertAutoClose('Actualizado correctamente.', 'Acción realizada');
@@ -1192,7 +1215,11 @@ $('#btnGuardarServicio').on('click', function() {
         let caracteristicaHtml = escapeHtml(caracteristicaTexto);
         if (puedeEditarCaracteristica) {
             caracteristicaHtml = `
-                <span class="editable-caracteristica"
+                <span class="editable-caracteristica caracteristica-editable"
+                      style="cursor:pointer;"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="Clic para editar"
                       data-tipo="insumo"
                       data-id="${detalleId}"
                       data-valor="${escapeHtml(caracteristicaValor)}">
@@ -1213,6 +1240,7 @@ $('#btnGuardarServicio').on('click', function() {
                 <td><button class="btn btn-primary btn-eliminar" data-id="${detalleId}">Eliminar</button></td>
             </tr>`;
         $('#tabla-insumos-agregados tbody').append(row);
+        initTooltips($('#tabla-insumos-agregados tbody').get(0));
     }
 
     function checkEmptyTable() {
