@@ -269,15 +269,17 @@
   {# Mostrar "Asignados" a Departamentos #}
   {% if es_departamento%}
    </li>
-                <li class="sidebar-list"><i class="fa fa-thumb-tack"></i><a class="sidebar-link " href="{% url 'scompras:crear_requerimiento' %}">
-                  <svg class="stroke-icon">
-                    <use href="../assets/svg/icon-sprite.svg#stroke-gallery"></use>
-                  </svg>
-                  <svg class="fill-icon">
-                    <use href="{% url 'scompras:crear_requerimiento' %}"></use>
-                  </svg><span>Requerimientos</span></a>
+                {% if not es_presupuesto %}
+                  <li class="sidebar-list"><i class="fa fa-thumb-tack"></i><a class="sidebar-link " href="{% url 'scompras:crear_requerimiento' %}">
+                    <svg class="stroke-icon">
+                      <use href="../assets/svg/icon-sprite.svg#stroke-gallery"></use>
+                    </svg>
+                    <svg class="fill-icon">
+                      <use href="{% url 'scompras:crear_requerimiento' %}"></use>
+                    </svg><span>Requerimientos</span></a>
 
-              </li>
+                  </li>
+                {% endif %}
                <li class="sidebar-list"><i class="fa fa-thumb-tack"></i><a class="sidebar-link " href="{% url 'scompras:lista_departamentos' %}">
                   <svg class="stroke-icon">
                     <use href="../assets/svg/icon-sprite.svg#stroke-gallery"></use>

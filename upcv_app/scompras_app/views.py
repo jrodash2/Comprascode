@@ -248,6 +248,23 @@ def cargar_secciones(request):
     secciones = Seccion.objects.filter(departamento_id=departamento_id).values('id', 'nombre').order_by('nombre')
     return JsonResponse({'secciones': list(secciones)}, safe=False)
 
+
+@bloquear_presupuesto
+def _crear_solicitud_desde_seccion(request, seccion, departamento, redirect_view, redirect_kwargs=None):
+    form = SolicitudCompraFormcrear(request.POST)
+    if form.is_valid():
+        solicitud = form.save(commit=False)
+        solicitud.usuario = request.user
+        solicitud.departamento = departamento
+        solicitud.seccion = seccion
+        solicitud.save()
+        messages.success(request, "Solicitud creada exitosamente.")
+        return redirect(redirect_view, **(redirect_kwargs or {}))
+
+    print(form.errors)
+    messages.error(request, "Por favor corrige los errores en el formulario.")
+    return form
+
 def ajax_cargar_secciones(request):
     departamento_id = request.GET.get('departamento_id')
     secciones = Seccion.objects.filter(departamento_id=departamento_id).values('id', 'nombre')
@@ -297,6 +314,7 @@ def detalle_seccion(request, departamento_id, seccion_id):
 
     grupos_usuario = list(user.groups.values_list('name', flat=True))
     es_admin = is_admin(user) or is_presupuesto(user)
+    es_presupuesto_usuario = es_presupuesto(user)
     es_scompras = 'scompras' in grupos_usuario
 
     if not (es_admin or es_scompras):
@@ -310,19 +328,16 @@ def detalle_seccion(request, departamento_id, seccion_id):
 
     # Manejo del formulario
     if request.method == 'POST':
-        form = SolicitudCompraFormcrear(request.POST)
-        if form.is_valid():
-            solicitud = form.save(commit=False)
-            solicitud.usuario = user
-            solicitud.departamento = seccion.departamento
-            solicitud.seccion = seccion
-            solicitud.save()
-            messages.success(request, "Solicitud creada exitosamente.")
-            return redirect('scompras:detalle_seccion', departamento_id=departamento_id, seccion_id=seccion_id)
-        else:
-            # Debug: errores en consola
-            print(form.errors)
-            messages.error(request, "Por favor corrige los errores en el formulario.")
+        resultado = _crear_solicitud_desde_seccion(
+            request,
+            seccion=seccion,
+            departamento=seccion.departamento,
+            redirect_view='scompras:detalle_seccion',
+            redirect_kwargs={'departamento_id': departamento_id, 'seccion_id': seccion_id},
+        )
+        if isinstance(resultado, HttpResponse):
+            return resultado
+        form = resultado
     else:
         form = SolicitudCompraFormcrear()
 
@@ -337,6 +352,7 @@ def detalle_seccion(request, departamento_id, seccion_id):
         'solicitudes': solicitudes,
         'todas_solicitudes': todas_solicitudes, 
         'secciones': secciones,
+        'es_presupuesto': es_presupuesto_usuario,
     }
     return render(request, 'scompras/detalle_seccion.html', context)
 
@@ -344,6 +360,7 @@ def detalle_seccion(request, departamento_id, seccion_id):
 @login_required
 def detalle_seccion_usuario(request):
     user = request.user
+    es_presupuesto_usuario = es_presupuesto(user)
 
     # Validar si pertenece al grupo "scompras"
     if not user.groups.filter(name='scompras').exists():
@@ -361,18 +378,15 @@ def detalle_seccion_usuario(request):
 
     # Formulario para crear solicitudes
     if request.method == 'POST':
-        form = SolicitudCompraFormcrear(request.POST)
-        if form.is_valid():
-            solicitud = form.save(commit=False)
-            solicitud.usuario = user
-            solicitud.departamento = departamento
-            solicitud.seccion = seccion
-            solicitud.save()
-            messages.success(request, "Solicitud creada exitosamente.")
-            return redirect('scompras:detalle_seccion_usuario')
-        else:
-            print(form.errors)
-            messages.error(request, "Por favor corrige los errores en el formulario.")
+        resultado = _crear_solicitud_desde_seccion(
+            request,
+            seccion=seccion,
+            departamento=departamento,
+            redirect_view='scompras:detalle_seccion_usuario',
+        )
+        if isinstance(resultado, HttpResponse):
+            return resultado
+        form = resultado
     else:
         form = SolicitudCompraFormcrear()
 
@@ -388,6 +402,7 @@ def detalle_seccion_usuario(request):
         'solicitudes': solicitudes,
         'todas_solicitudes': todas_solicitudes,
         'secciones': secciones,
+        'es_presupuesto': es_presupuesto_usuario,
     }
 
     return render(request, 'scompras/detalle_seccion_usuario.html', context)
