@@ -93,9 +93,9 @@ WSGI_APPLICATION = 'upcv_app.wsgi.application'
 DATABASES = {
     'default': {  # Tu BD actual, sin cambios
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'Tickets',
+        'NAME': 'Scompras',
         'USER': 'postgres',
-        'PASSWORD': 'Jrodash2*',
+        'PASSWORD': 'Jrodash2#',
         'HOST': 'localhost',
         'PORT': '5432',
     },
@@ -103,7 +103,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'Tickets',
         'USER': 'postgres',
-        'PASSWORD': 'Jrodash2*',
+        'PASSWORD': 'Jrodash2#',
         'HOST': 'localhost',
         'PORT': '5432',
     },
