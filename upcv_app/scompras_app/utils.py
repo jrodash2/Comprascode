@@ -15,6 +15,22 @@ def is_presupuesto(user):
     return user.is_authenticated and user.groups.filter(name="PRESUPUESTO").exists()
 
 
+def es_presupuesto(user):
+    return user.is_authenticated and user.groups.filter(name="PRESUPUESTO").exists()
+
+
+def bloquear_presupuesto(view_func):
+    """Bloquea acciones específicas para usuarios del grupo PRESUPUESTO."""
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        if es_presupuesto(request.user):
+            if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.method == "POST":
+                return JsonResponse({"success": False, "error": "No autorizado."}, status=403)
+            return redirect(f"/no-autorizado/?next={request.path}")
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
+
 def admin_only_config(view_func):
     """Restringe las vistas de configuración únicamente a administradores."""
     @wraps(view_func)

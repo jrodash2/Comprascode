@@ -74,7 +74,14 @@ from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 import json
 from django.contrib.auth.models import Group
-from .utils import admin_only_config, grupo_requerido, is_admin, is_presupuesto
+from .utils import (
+    admin_only_config,
+    bloquear_presupuesto,
+    es_presupuesto,
+    grupo_requerido,
+    is_admin,
+    is_presupuesto,
+)
 from .services.presupuesto_import import import_rows, read_rows
 from django.views.decorators.http import require_GET
 from django.db.models.functions import Coalesce
@@ -790,7 +797,7 @@ class SolicitudCompraDetailView(DetailView):
 
         user = self.request.user
         es_admin = is_admin(user)
-        es_presupuesto = is_presupuesto(user)
+        es_presupuesto_usuario = es_presupuesto(user)
         es_scompras = user.groups.filter(name='scompras').exists()
         estado_finalizada = solicitud.estado == 'Finalizada'
         estado_rechazada = solicitud.estado == 'Rechazada'
@@ -839,7 +846,7 @@ class SolicitudCompraDetailView(DetailView):
                 or Decimal('0.00'),
             }
 
-        usuario_puede_presupuesto = es_admin or es_presupuesto
+        usuario_puede_presupuesto = es_admin or es_presupuesto_usuario
 
         presupuesto_activo = PresupuestoAnual.presupuesto_activo()
         context['presupuesto_activo'] = presupuesto_activo
@@ -853,15 +860,32 @@ class SolicitudCompraDetailView(DetailView):
         context['puede_gestionar_cdp'] = usuario_puede_presupuesto
         context['estado_finalizada'] = estado_finalizada
         context['estado_rechazada'] = estado_rechazada
-        context['es_admin'] = es_admin or es_presupuesto
+        context['es_admin'] = es_admin or es_presupuesto_usuario
         context['es_scompras'] = es_scompras
         context['mostrar_acciones_solicitud'] = not (estado_finalizada or estado_rechazada)
         context['mostrar_liberar_todos'] = (
-            es_admin or es_presupuesto
+            es_admin or es_presupuesto_usuario
             and not context['tiene_cdo']
             and context['cdps_reservados'].exists()
         )
         context['puede_editar_caracteristica'] = solicitud.estado in ['Creada', 'Finalizada']
+        puede_editar_solicitud_ui = True
+        puede_finalizar_solicitud_ui = not estado_finalizada and not estado_rechazada
+        puede_anular_solicitud_ui = (
+            solicitud.estado == 'Creada' or estado_finalizada or estado_rechazada
+        )
+        puede_imprimir_solicitud_ui = estado_finalizada or estado_rechazada
+        if es_presupuesto_usuario:
+            puede_editar_solicitud_ui = False
+            puede_finalizar_solicitud_ui = False
+            puede_anular_solicitud_ui = False
+            puede_imprimir_solicitud_ui = False
+
+        context['es_presupuesto'] = es_presupuesto_usuario
+        context['puede_editar_solicitud_ui'] = puede_editar_solicitud_ui
+        context['puede_finalizar_solicitud_ui'] = puede_finalizar_solicitud_ui
+        context['puede_anular_solicitud_ui'] = puede_anular_solicitud_ui
+        context['puede_imprimir_solicitud_ui'] = puede_imprimir_solicitud_ui
 
         return context
 
@@ -1400,6 +1424,18 @@ def detalle_solicitud(request, solicitud_id):
     servicios = ServicioSolicitud.objects.filter(solicitud=solicitud)  # 👈 ESTA LÍNEA ES CLAVE
     productos = Producto.objects.filter(activo=True)
     subproductos = Subproducto.objects.filter(activo=True)
+    estado_finalizada = solicitud.estado == 'Finalizada'
+    estado_rechazada = solicitud.estado == 'Rechazada'
+    es_presupuesto_usuario = es_presupuesto(request.user)
+    puede_editar_solicitud_ui = True
+    puede_finalizar_solicitud_ui = not estado_finalizada and not estado_rechazada
+    puede_anular_solicitud_ui = solicitud.estado == 'Creada' or estado_finalizada or estado_rechazada
+    puede_imprimir_solicitud_ui = estado_finalizada or estado_rechazada
+    if es_presupuesto_usuario:
+        puede_editar_solicitud_ui = False
+        puede_finalizar_solicitud_ui = False
+        puede_anular_solicitud_ui = False
+        puede_imprimir_solicitud_ui = False
 
     return render(request, 'scompras/detalle_solicitud.html', {
         'solicitud': solicitud,
@@ -1408,6 +1444,11 @@ def detalle_solicitud(request, solicitud_id):
         'subproductos': subproductos,
         'servicios': servicios,
         'puede_editar_caracteristica': solicitud.estado in ['Creada', 'Finalizada'],
+        'es_presupuesto': es_presupuesto_usuario,
+        'puede_editar_solicitud_ui': puede_editar_solicitud_ui,
+        'puede_finalizar_solicitud_ui': puede_finalizar_solicitud_ui,
+        'puede_anular_solicitud_ui': puede_anular_solicitud_ui,
+        'puede_imprimir_solicitud_ui': puede_imprimir_solicitud_ui,
     })
 
 def obtener_subproductos(request, producto_id):
@@ -1416,6 +1457,7 @@ def obtener_subproductos(request, producto_id):
     return JsonResponse({'subproductos': data})
 
 
+@bloquear_presupuesto
 @require_POST
 def editar_solicitud(request):
     try:
@@ -1444,6 +1486,7 @@ def editar_solicitud(request):
 
 @login_required
 @csrf_exempt
+@bloquear_presupuesto
 def finalizar_solicitud(request):
     if request.method == "POST":
         try:
@@ -1475,6 +1518,7 @@ def finalizar_solicitud(request):
 
 @login_required
 @csrf_exempt
+@bloquear_presupuesto
 def rechazar_solicitud(request):
     if request.method == "POST":
         try:
@@ -1549,6 +1593,7 @@ from django.utils.timezone import localtime
 from django.template.defaultfilters import date as django_date
 from xhtml2pdf import pisa
 
+@bloquear_presupuesto
 def generar_pdf_solicitud(request, solicitud_id):
     solicitud = get_object_or_404(SolicitudCompra, id=solicitud_id)
 
