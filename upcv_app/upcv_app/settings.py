@@ -70,6 +70,7 @@ TEMPLATES = [
                 'scompras_app.context_processors.grupo_usuario',
                 'scompras_app.context_processors.datos_institucion',
                 'scompras_app.context_processors.media_server_tickets',
+                'scompras_app.context_processors.permisos_configuracion',
 
             ],
         },
@@ -193,4 +194,3 @@ EMAIL_HOST_USER = 'informatica@upcv.gob.gt'
 EMAIL_HOST_PASSWORD = 'xtdj nvwz ymyw lqyr'  
 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-
