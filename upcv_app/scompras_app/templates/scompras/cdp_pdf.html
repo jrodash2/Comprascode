@@ -200,7 +200,8 @@
               -
             {% endif %}
           </p>
-          <p><strong>Constancia No.:</strong> {{ correlativo_constancia }}-{{ ejercicio_fiscal }}</p>
+          <p><strong>Constancia No.:</strong> {{ correlativo_constancia }}{% if ejercicio_fiscal %}-{{ ejercicio_fiscal }}{% endif %}</p>
+          <p><strong>Ejercicio Fiscal:</strong> {{ ejercicio_fiscal }}</p>
         </div>
       </td>
     </tr>
@@ -229,13 +230,9 @@
           <span class="value">{{ fecha_solicitud_formateada }}</span>
         </div>
         <div class="row">
-          <span class="label">Sección:</span>
+          <span class="label">Justificación:</span>
           <span class="value">
-            {% if solicitud and solicitud.seccion %}
-              {{ solicitud.seccion.nombre }}
-            {% else %}
-              -
-            {% endif %}
+            <span style="white-space: normal;">{{ solicitud.descripcion|default:"Ninguna" }}</span>
           </span>
         </div>
       </td>
@@ -252,12 +249,14 @@
           </span>
         </div>
         <div class="row">
-          <span class="label">Ejercicio:</span>
-          <span class="value">{{ ejercicio_fiscal }}</span>
-        </div>
-        <div class="row">
-          <span class="label">Justificación:</span>
-          <span class="value">{{ solicitud.descripcion|default:"Ninguna" }}</span>
+          <span class="label">Sección:</span>
+          <span class="value">
+            {% if solicitud and solicitud.seccion %}
+              {{ solicitud.seccion.nombre }}
+            {% else %}
+              -
+            {% endif %}
+          </span>
         </div>
       </td>
     </tr>
