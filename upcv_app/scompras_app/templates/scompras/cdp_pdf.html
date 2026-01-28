@@ -194,7 +194,27 @@
             {% else %}
               -
             {% endif %}
-          </span>
+          </div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <div class="field-row" style="margin-top:0;">
+          <span class="field-label" style="width:auto;">Justificación:</span>
+          <div class="box just-wrap" style="margin-top:6px;">
+            {{ solicitud.descripcion|default:"Ninguna" }}
+          </div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <div class="field-row" style="margin-top:0;">
+          <span class="field-label" style="width:auto;">Justificación:</span>
+          <div class="box just-wrap" style="margin-top:6px;">
+            {{ solicitud.descripcion|default:"Ninguna" }}
+          </div>
         </div>
       </td>
     </tr>
