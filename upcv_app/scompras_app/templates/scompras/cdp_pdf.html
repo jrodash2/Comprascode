@@ -33,12 +33,12 @@
 
     /* Layout general */
     .page { width: 100%; }
-    .box { border:1px solid #777; padding:6px; }
-    .box-title { background:#e9e9e9; font-weight:bold; font-size:10px; padding:3px 6px; border:1px solid #777; }
+    .box { border:1px solid #777; padding:8px 10px; }
+    .box-title { background:#e9e9e9; font-weight:bold; font-size:10px; padding:4px 8px; border:1px solid #777; }
 
     /* Tablas */
     .tbl { width:100%; border-collapse:collapse; table-layout:fixed; }
-    .tbl th, .tbl td { border:1px solid #777; padding:6px 6px; font-size:9.5px; vertical-align:top; }
+    .tbl th, .tbl td { border:1px solid #777; padding:6px 8px; font-size:9.5px; vertical-align:top; line-height:1.35; }
     .tbl th { background:#efefef; font-weight:bold; text-align:center; }
 
     /* Alineaciones */
@@ -58,6 +58,11 @@
     .info-grid td { vertical-align:top; }
     .info-left { width:55%; padding-right:6px; }
     .info-right { width:45%; padding-left:6px; }
+
+    .field-row { border:1px solid #777; padding:6px 8px; margin-top:6px; }
+    .field-label { font-weight:bold; display:inline-block; width:90px; }
+    .field-value { display:inline-block; }
+    .just-wrap { white-space:normal; word-wrap:break-word; }
 
     .hdr{
       width:100%;
@@ -135,13 +140,17 @@
     </tr>
   </table>
 
-  <table class="tbl info-grid" style="margin-top:8px;">
+  <table class="tbl" style="margin-top:8px;">
     <tr>
-      <td class="info-left">
+      <td colspan="2" style="padding:0; border:none;">
         <div class="box-title">Información general</div>
-        <div class="box">
-          <div>
-            <b>Solicitud:</b>
+      </td>
+    </tr>
+    <tr>
+      <td style="width:50%; border-top:none;">
+        <div class="field-row">
+          <span class="field-label">Solicitud:</span>
+          <span class="field-value">
             {% if solicitud %}
               {% if solicitud.codigo_correlativo %}
                 {{ solicitud.codigo_correlativo }}
@@ -151,29 +160,50 @@
             {% else %}
               -
             {% endif %}
-          </div>
-          <div><b>Fecha:</b> {{ fecha_solicitud_formateada }}</div>
-          <div><b>Justificación:</b> {{ solicitud.descripcion|default:"Ninguna" }}</div>
+          </span>
+        </div>
+
+        <div class="field-row">
+          <span class="field-label">Fecha:</span>
+          <span class="field-value">
+            {% if solicitud %}
+              {{ solicitud.fecha_solicitud|date:"d \\d\\e F \\d\\e Y" }}
+            {% else %}
+              -
+            {% endif %}
+          </span>
         </div>
       </td>
-      <td class="info-right">
-        <div class="box-title">&nbsp;</div>
-        <div class="box">
-          <div>
-            <b>Departamento:</b>
+      <td style="width:50%; border-top:none;">
+        <div class="field-row">
+          <span class="field-label">Departamento:</span>
+          <span class="field-value">
             {% if solicitud and solicitud.seccion and solicitud.seccion.departamento %}
               {{ solicitud.seccion.departamento.nombre }}
             {% else %}
               -
             {% endif %}
-          </div>
-          <div>
-            <b>Sección:</b>
+          </span>
+        </div>
+
+        <div class="field-row">
+          <span class="field-label">Sección:</span>
+          <span class="field-value">
             {% if solicitud and solicitud.seccion %}
               {{ solicitud.seccion.nombre }}
             {% else %}
               -
             {% endif %}
+          </div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <div class="field-row" style="margin-top:0;">
+          <span class="field-label" style="width:auto;">Justificación:</span>
+          <div class="box just-wrap" style="margin-top:6px;">
+            {{ solicitud.descripcion|default:"Ninguna" }}
           </div>
         </div>
       </td>
