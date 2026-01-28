@@ -50,9 +50,10 @@
     .wrap { white-space:normal; word-wrap:break-word; }
 
     /* Encabezado superior (caja derecha) */
-    .header-right td { font-size:9.5px; padding:4px 6px; }
-    .header-right .lbl { font-weight:bold; width:35%; }
-    .header-right .val { width:65%; }
+    .topbox { width:100%; border-collapse:collapse; table-layout:fixed; }
+    .topbox td { border:1px solid #777; padding:6px 8px; font-size:9.5px; line-height:1.35; vertical-align:middle; }
+    .topbox .lbl { font-weight:bold; width:32%; }
+    .topbox .val { width:68%; }
 
     /* Bloques información */
     .info-grid td { vertical-align:top; }
@@ -105,27 +106,14 @@
         {% endif %}
       </td>
       <td>
-        <table class="tbl header-right" style="width:360px; float:right;">
-          <tr><th colspan="2" style="font-size:11px;">Constancia de Disponibilidad Presupuestaria</th></tr>
+        <table class="topbox" style="width:360px; float:right;">
           <tr>
             <td class="lbl">Solicitud:</td>
-            <td class="val">
-              {% if solicitud %}
-                {% if solicitud.codigo_correlativo %}
-                  {{ solicitud.codigo_correlativo }}
-                {% else %}
-                  {{ solicitud.id }}
-                {% endif %}
-              {% else %}
-                -
-              {% endif %}
-            </td>
+            <td class="val">{{ solicitud.codigo_correlativo }}</td>
           </tr>
           <tr>
             <td class="lbl">Constancia No.:</td>
-            <td class="val">
-              {{ correlativo_constancia }}{% if ejercicio_fiscal %}-{{ ejercicio_fiscal }}{% endif %}
-            </td>
+            <td class="val">{{ constancia_no }}</td>
           </tr>
           <tr>
             <td class="lbl">Fecha impresión:</td>
@@ -194,6 +182,16 @@
             {% else %}
               -
             {% endif %}
+          </div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <div class="field-row" style="margin-top:0;">
+          <span class="field-label" style="width:auto;">Justificación:</span>
+          <div class="box just-wrap" style="margin-top:6px;">
+            {{ solicitud.descripcion|default:"Ninguna" }}
           </div>
         </div>
       </td>
