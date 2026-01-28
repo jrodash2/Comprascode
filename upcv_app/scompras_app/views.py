@@ -1674,56 +1674,68 @@ def generar_pdf_cdp(request, cdp_id):
             'renglon__presupuesto_anual',
             'renglon__producto',
             'renglon__subproducto',
+            'solicitud__seccion',
+            'solicitud__seccion__departamento',
         ),
         pk=cdp_id,
     )
 
-    fecha_cdp = localtime(cdp.fecha_creacion)
-    fecha_cdp_formateada = django_date(fecha_cdp, 'j \\d\\e F \\d\\e Y')
+    solicitud = getattr(cdp, "solicitud", None)
+    cdps = CDP.objects.none()
+    if solicitud:
+        cdps = (
+            CDP.objects.filter(solicitud=solicitud)
+            .select_related(
+                'renglon',
+                'renglon__presupuesto_anual',
+                'renglon__producto',
+                'renglon__subproducto',
+            )
+            .order_by('id')
+        )
 
-    producto_codigo = (
-        f"P-{cdp.renglon.producto.codigo}" if cdp.renglon.producto else "-"
-    )
-    subproducto_codigo = (
-        f"SP-{cdp.renglon.subproducto.codigo}" if cdp.renglon.subproducto else "-"
-    )
-
-    descripcion_renglon = cdp.renglon.descripcion or "-"
-    renglon_compacto = f"Renglon {cdp.renglon.codigo_renglon} - {descripcion_renglon}"
-    if cdp.renglon.producto:
-        renglon_compacto = f"{renglon_compacto} / {producto_codigo}"
-    if cdp.renglon.subproducto:
-        renglon_compacto = f"{renglon_compacto} / {subproducto_codigo}"
-
-    detalles_cdp = [
-        {
-            "codigo_renglon": cdp.renglon.codigo_renglon,
-            "descripcion": descripcion_renglon,
-            "monto": cdp.monto,
-            "producto": producto_codigo,
-            "subproducto": subproducto_codigo,
-            "renglon_compacto": renglon_compacto,
-        }
-    ]
+    detalles_cdp = []
+    total_reservado = Decimal('0.00')
+    for item in cdps:
+        renglon_compacto = getattr(item.renglon, "label_compacto", None)
+        if not renglon_compacto:
+            descripcion_renglon = item.renglon.descripcion or "-"
+            renglon_compacto = f"Renglon {item.renglon.codigo_renglon} - {descripcion_renglon}"
+            if item.renglon.producto:
+                renglon_compacto = f"{renglon_compacto} / P-{item.renglon.producto.codigo}"
+            if item.renglon.subproducto:
+                renglon_compacto = f"{renglon_compacto} / SP-{item.renglon.subproducto.codigo}"
+        detalles_cdp.append(
+            {
+                "cdp_numero": str(item.id).zfill(5),
+                "renglon_compacto": renglon_compacto,
+                "monto": item.monto,
+                "estado": item.get_estado_display(),
+            }
+        )
+        total_reservado += item.monto or Decimal('0.00')
 
     institucion = Institucion.objects.first()
-    solicitud = getattr(cdp, "solicitud", None)
-    ejercicio_fiscal = cdp.renglon.presupuesto_anual.anio if cdp.renglon.presupuesto_anual else "-"
-    cdp_correlativo_5 = str(cdp.id).zfill(5)
-    justificacion = solicitud.descripcion if solicitud else "—"
+    ejercicio_fiscal = "-"
+    if cdps:
+        ejercicio_fiscal = cdps[0].renglon.presupuesto_anual.anio if cdps[0].renglon.presupuesto_anual else "-"
 
-    solicitante_nombre = "No configurado"
-    solicitante_cargo = "No configurado"
+    cdp_correlativo_5 = str(cdp.id).zfill(5)
+    fecha_solicitud_formateada = "-"
+    justificacion = "—"
     if solicitud:
-        solicitante_usuario = getattr(solicitud, "usuario", None)
-        if solicitante_usuario:
-            solicitante_nombre = solicitante_usuario.get_full_name() or solicitante_usuario.username
-        if solicitud.seccion and solicitud.seccion.firmante_nombre and solicitante_nombre == "No configurado":
-            solicitante_nombre = solicitud.seccion.firmante_nombre
-        if solicitud.seccion and solicitud.seccion.firmante_cargo:
-            solicitante_cargo = solicitud.seccion.firmante_cargo
+        fecha_solicitud = localtime(solicitud.fecha_solicitud)
+        fecha_solicitud_formateada = django_date(fecha_solicitud, 'j \\d\\e F \\d\\e Y')
+        justificacion = solicitud.descripcion or "—"
 
     encargado_nombre = request.user.get_full_name() or request.user.username
+    vobo_nombre = "________________"
+    vobo_cargo = "________________"
+    if solicitud and solicitud.seccion:
+        if solicitud.seccion.firmante_nombre:
+            vobo_nombre = solicitud.seccion.firmante_nombre
+        if solicitud.seccion.firmante_cargo:
+            vobo_cargo = solicitud.seccion.firmante_cargo
 
     logo1_url = None
     logo2_url = None
@@ -1737,17 +1749,17 @@ def generar_pdf_cdp(request, cdp_id):
         "cdp": cdp,
         "cdp_correlativo_5": cdp_correlativo_5,
         "solicitud": solicitud,
+        "fecha_solicitud_formateada": fecha_solicitud_formateada,
         "justificacion": justificacion,
         "institucion": institucion,
         "logo1_url": logo1_url,
         "logo2_url": logo2_url,
-        "fecha_cdp_formateada": fecha_cdp_formateada,
         "ejercicio_fiscal": ejercicio_fiscal,
         "detalles_cdp": detalles_cdp,
-        "total_cdp": cdp.monto,
-        "solicitante_nombre": solicitante_nombre,
-        "solicitante_cargo": solicitante_cargo,
+        "total_reservado": total_reservado,
         "encargado_nombre": encargado_nombre,
+        "vobo_nombre": vobo_nombre,
+        "vobo_cargo": vobo_cargo,
         "usuario_imprime": request.user,
         "fecha_impresion": localtime(),
     }
