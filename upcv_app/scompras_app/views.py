@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from django.utils.timezone import localtime
+from django.utils import timezone
 from venv import logger
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
@@ -1778,6 +1779,7 @@ def generar_pdf_cdp(request, cdp_id):
         "correlativo_constancia": correlativo_constancia,
         "solicitud": solicitud,
         "fecha_solicitud_formateada": fecha_solicitud_formateada,
+        "fecha_impresion": timezone.localtime(timezone.now()).strftime("%d/%m/%Y %H:%M"),
         "justificacion": justificacion,
         "institucion": institucion,
         "logo1_url": logo1_url,
@@ -1790,7 +1792,6 @@ def generar_pdf_cdp(request, cdp_id):
         "vobo_nombre": vobo_nombre,
         "vobo_cargo": vobo_cargo,
         "usuario_imprime": request.user,
-        "fecha_impresion": localtime(),
     }
 
     html = render_to_string("scompras/cdp_pdf.html", context)
