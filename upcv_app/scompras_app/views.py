@@ -1707,17 +1707,47 @@ def generar_pdf_cdp(request, cdp_id):
     ]
 
     institucion = Institucion.objects.first()
-    solicitud = cdp.solicitud
+    solicitud = getattr(cdp, "solicitud", None)
     ejercicio_fiscal = cdp.renglon.presupuesto_anual.anio if cdp.renglon.presupuesto_anual else "-"
+    cdp_correlativo_5 = str(cdp.id).zfill(5)
+    justificacion = solicitud.descripcion if solicitud else "—"
+
+    solicitante_nombre = "No configurado"
+    solicitante_cargo = "No configurado"
+    if solicitud:
+        solicitante_usuario = getattr(solicitud, "usuario", None)
+        if solicitante_usuario:
+            solicitante_nombre = solicitante_usuario.get_full_name() or solicitante_usuario.username
+        if solicitud.seccion and solicitud.seccion.firmante_nombre and solicitante_nombre == "No configurado":
+            solicitante_nombre = solicitud.seccion.firmante_nombre
+        if solicitud.seccion and solicitud.seccion.firmante_cargo:
+            solicitante_cargo = solicitud.seccion.firmante_cargo
+
+    encargado_nombre = request.user.get_full_name() or request.user.username
+
+    logo1_url = None
+    logo2_url = None
+    if institucion:
+        if institucion.logo:
+            logo1_url = request.build_absolute_uri(institucion.logo.url)
+        if institucion.logo2:
+            logo2_url = request.build_absolute_uri(institucion.logo2.url)
 
     context = {
         "cdp": cdp,
+        "cdp_correlativo_5": cdp_correlativo_5,
         "solicitud": solicitud,
+        "justificacion": justificacion,
         "institucion": institucion,
+        "logo1_url": logo1_url,
+        "logo2_url": logo2_url,
         "fecha_cdp_formateada": fecha_cdp_formateada,
         "ejercicio_fiscal": ejercicio_fiscal,
         "detalles_cdp": detalles_cdp,
         "total_cdp": cdp.monto,
+        "solicitante_nombre": solicitante_nombre,
+        "solicitante_cargo": solicitante_cargo,
+        "encargado_nombre": encargado_nombre,
         "usuario_imprime": request.user,
         "fecha_impresion": localtime(),
     }

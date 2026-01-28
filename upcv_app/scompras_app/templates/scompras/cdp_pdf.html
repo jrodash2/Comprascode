@@ -1,115 +1,293 @@
+{% load static %}
 {% load money %}
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <title>CDP</title>
-    <style>
-      body {
-        font-family: Helvetica, Arial, sans-serif;
-        font-size: 12px;
-        color: #222;
-      }
-      .header {
-        text-align: center;
-        margin-bottom: 16px;
-      }
-      .title {
-        font-size: 16px;
-        font-weight: bold;
-        margin-top: 4px;
-      }
-      .meta {
-        margin-bottom: 12px;
-      }
-      .meta table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      .meta td {
-        padding: 4px 0;
-      }
-      table.detalle {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 8px;
-      }
-      table.detalle th,
-      table.detalle td {
-        border: 1px solid #444;
-        padding: 6px;
-        font-size: 11px;
-      }
-      table.detalle th {
-        background-color: #f0f0f0;
-        text-align: left;
-      }
-      .text-end {
-        text-align: right;
-      }
-      .footer {
-        margin-top: 18px;
-        font-size: 10px;
-        color: #555;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="header">
-      {% if institucion %}
-        <div>{{ institucion.nombre }}</div>
-      {% endif %}
-      <div class="title">CERTIFICADO DE DISPONIBILIDAD PRESUPUESTARIA (CDP)</div>
-    </div>
+<head>
+  <meta charset="UTF-8" />
+  <title>CDP</title>
 
-    <div class="meta">
-      <table>
-        <tr>
-          <td><strong>CDP No:</strong> {{ cdp.id }}</td>
-          <td><strong>Fecha:</strong> {{ fecha_cdp_formateada }}</td>
-        </tr>
-        <tr>
-          <td><strong>Ejercicio fiscal:</strong> {{ ejercicio_fiscal }}</td>
-          <td>
-            <strong>Solicitud relacionada:</strong>
-            {% if solicitud.codigo_correlativo %}
-              {{ solicitud.codigo_correlativo }}
+  <style>
+    @page {
+      size: letter;
+      margin: 18px;
+
+      @frame content_frame {
+        left: 18px; right: 18px;
+        top: 18px; bottom: 140px;
+      }
+
+      @frame footer_frame {
+        left: 18px; right: 18px;
+        bottom: 18px;
+        height: 120px;
+        -pdf-frame-content: footer_content;
+      }
+    }
+
+    body{
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      margin: 0;
+      color:#111;
+    }
+
+    .hdr{
+      width:100%;
+      border-collapse:collapse;
+      margin-bottom:6px;
+    }
+    .hdr td{ vertical-align:middle; padding:0; }
+
+    .logos{
+      width:62%;
+      white-space:nowrap;
+    }
+    .logos img{
+      height:78px;
+      width:auto;
+      margin-right:8px;
+      vertical-align:middle;
+    }
+
+    .titlebox{
+      width:38%;
+      border:1px solid #444;
+      padding:6px 8px;
+      font-size:10px;
+    }
+    .titlebox .t{
+      font-size:12px;
+      font-weight:bold;
+      text-align:center;
+      margin:0 0 4px 0;
+      letter-spacing:.3px;
+    }
+    .titlebox p{ margin:0; line-height:1.25; }
+
+    .info{
+      width:100%;
+      border-collapse:collapse;
+      margin-bottom:10px;
+      table-layout:fixed;
+    }
+
+    .info td{
+      border:1px solid #444;
+      padding:7px 10px;
+      font-size:10px;
+      line-height:1.35;
+      vertical-align:top;
+    }
+
+    .info .box-title{
+      display:block;
+      font-weight:bold;
+      font-size:9px;
+      text-transform:uppercase;
+      letter-spacing:.3px;
+      color:#111;
+      margin-bottom:4px;
+      padding:3px 6px;
+      border:1px solid #bbb;
+      background:#f3f3f3;
+    }
+
+    .info .row{
+      margin:0;
+      padding:0;
+    }
+
+    .info .label{
+      font-weight:bold;
+      display:inline-block;
+      width:78px;
+      color:#222;
+    }
+
+    .info .value{
+      color:#111;
+    }
+
+    .ptext{
+      margin:0 0 6px;
+      font-size:10px;
+      line-height:1.25;
+    }
+
+    .subtitle{
+      font-size:10px;
+      font-weight:bold;
+      margin:8px 0 4px;
+    }
+
+    .table{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+    }
+
+    .table th, .table td{
+      border:1px solid #999;
+      padding:4px 5px;
+      font-size:9px;
+      line-height:1.2;
+      vertical-align:top;
+      word-wrap: break-word;
+    }
+
+    .table th{
+      background:#f2f2f2;
+      text-align:center;
+      font-weight:bold;
+    }
+
+    .w-reng { width:60%; }
+    .w-prod { width:15%; }
+    .w-subp { width:10%; }
+    .w-mont { width:15%; }
+    .center{ text-align:center; }
+    .text-end{ text-align:right; }
+
+    .firma-table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:10px;
+      table-layout:fixed;
+    }
+    .firma-title{
+      font-size:10px;
+      font-weight:bold;
+      margin-bottom:6px;
+    }
+    .firma-line{
+      border-top:1px solid #333;
+      margin-top:24px;
+      padding-top:4px;
+      font-size:9px;
+      text-align:center;
+    }
+    .firma-cargo{
+      font-size:9px;
+      text-align:center;
+      color:#333;
+    }
+  </style>
+</head>
+
+<body>
+
+  <table class="hdr">
+    <tr>
+      <td class="logos">
+        {% if logo2_url %}
+          <img src="{{ logo2_url }}" alt="Logo 2" />
+        {% endif %}
+        {% if logo1_url %}
+          <img src="{{ logo1_url }}" alt="Logo 1" />
+        {% endif %}
+      </td>
+      <td>
+        <div class="titlebox">
+          <div class="t">CERTIFICADO DE DISPONIBILIDAD PRESUPUESTARIA (CDP)</div>
+          <p><strong>CDP No.:</strong> {{ cdp_correlativo_5 }}</p>
+          <p><strong>Fecha:</strong> {{ fecha_cdp_formateada }}</p>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="info">
+    <tr>
+      <td width="33%">
+        <span class="box-title">Información general</span>
+        <div class="row">
+          <span class="label">Ejercicio:</span>
+          <span class="value">{{ ejercicio_fiscal }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Solicitud:</span>
+          <span class="value">
+            {% if solicitud %}
+              {% if solicitud.codigo_correlativo %}
+                {{ solicitud.codigo_correlativo }}
+              {% else %}
+                {{ solicitud.id }}
+              {% endif %}
             {% else %}
-              {{ solicitud.id }}
+              -
             {% endif %}
-          </td>
-        </tr>
-      </table>
-    </div>
+          </span>
+        </div>
+      </td>
+      <td width="34%">
+        <span class="box-title">Solicitante</span>
+        <div class="row">
+          <span class="label">Solicita:</span>
+          <span class="value">{{ solicitante_nombre }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Cargo:</span>
+          <span class="value">{{ solicitante_cargo }}</span>
+        </div>
+      </td>
+      <td width="33%">
+        <span class="box-title">Impresión</span>
+        <div class="row">
+          <span class="label">Usuario:</span>
+          <span class="value">{{ encargado_nombre }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Fecha:</span>
+          <span class="value">{{ fecha_impresion|date:"d/m/Y H:i" }}</span>
+        </div>
+      </td>
+    </tr>
+  </table>
 
-    <table class="detalle">
-      <thead>
+  <div class="subtitle">Justificación:</div>
+  <p class="ptext">{{ justificacion }}</p>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th class="w-reng">Renglón</th>
+        <th class="w-prod">Producto</th>
+        <th class="w-subp">Subproducto</th>
+        <th class="w-mont">Monto Reservado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in detalles_cdp %}
         <tr>
-          <th>Renglón</th>
-          <th>Producto</th>
-          <th>Subproducto</th>
-          <th class="text-end">Monto Reservado</th>
+          <td class="w-reng">{{ item.renglon_compacto }}</td>
+          <td class="center w-prod">{{ item.producto }}</td>
+          <td class="center w-subp">{{ item.subproducto }}</td>
+          <td class="text-end w-mont">{{ item.monto|money_gtq }}</td>
         </tr>
-      </thead>
-      <tbody>
-        {% for item in detalles_cdp %}
-          <tr>
-            <td>{{ item.renglon_compacto }}</td>
-            <td>{{ item.producto }}</td>
-            <td>{{ item.subproducto }}</td>
-            <td class="text-end">{{ item.monto|money_gtq }}</td>
-          </tr>
-        {% endfor %}
-        <tr>
-          <td colspan="3" class="text-end"><strong>Total general</strong></td>
-          <td class="text-end"><strong>{{ total_cdp|money_gtq }}</strong></td>
-        </tr>
-      </tbody>
+      {% endfor %}
+      <tr>
+        <td colspan="3" class="text-end"><strong>Total general</strong></td>
+        <td class="text-end"><strong>{{ total_cdp|money_gtq }}</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div id="footer_content">
+    <table class="firma-table">
+      <tr>
+        <td width="50%">
+          <div class="firma-title">Solicitado por:</div>
+          <div class="firma-line">{{ solicitante_nombre }}</div>
+          <div class="firma-cargo">{{ solicitante_cargo }}</div>
+        </td>
+        <td width="50%">
+          <div class="firma-title">Encargado de Compras:</div>
+          <div class="firma-line">{{ encargado_nombre }}</div>
+          <div class="firma-cargo">Encargado de Compras</div>
+        </td>
+      </tr>
     </table>
+  </div>
 
-    <div class="footer">
-      <div>Usuario que imprime: {{ usuario_imprime.get_full_name|default:usuario_imprime.username }}</div>
-      <div>Fecha/Hora impresión: {{ fecha_impresion|date:"d/m/Y H:i" }}</div>
-    </div>
-  </body>
+</body>
 </html>
