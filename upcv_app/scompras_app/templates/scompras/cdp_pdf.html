@@ -289,42 +289,62 @@
   </table>
 
   <div id="footer_content">
-    <table width="100%" style="border-collapse:collapse; margin-top:18px;">
-      <tr>
-        <td width="50%" style="text-align:center; vertical-align:top; padding-left:40px; padding-right:10px;">
-          <div style="font-size:12px; font-weight:bold; margin-bottom:6px;">SOLICITADO POR</div>
-          <div style="height:40px;"></div>
-          <div style="height:3px; width:85%; margin:0 auto; background:#0068ab;"></div>
-          <div style="margin-top:8px; font-size:12px; font-weight:600;">
-            {{ solicitado_por_nombre }}
-          </div>
-          <div style="font-size:10px; color:#555; margin-top:2px;">
-            {{ solicitado_por_cargo }}
-          </div>
-        </td>
-        <td width="50%" style="text-align:center; vertical-align:top; padding-left:10px; padding-right:40px;">
-          <div style="font-size:12px; font-weight:bold; margin-bottom:6px;">AUTORIZADO POR</div>
-          <div style="height:40px;"></div>
-          <div style="height:3px; width:85%; margin:0 auto; background:#0068ab;"></div>
-          <div style="margin-top:8px; font-size:12px; font-weight:600;">
-            {{ autorizado_por_nombre }}
-          </div>
-          <div style="font-size:10px; color:#555; margin-top:2px;">
-            {{ autorizado_por_cargo }}
-          </div>
-        </td>
-      </tr>
-    </table>
-    <table width="100%" style="border-collapse:collapse; margin-top:14px;">
-      <tr>
-        <td style="height:6px; background:#0068ab;"></td>
-      </tr>
-      <tr>
-        <td style="height:2px; background:#e5e7eb;"></td>
-      </tr>
-    </table>
-    <img id="img-movible" src="{% static 'assets/images/login/firmas.png' %}" alt="Firmas">
-  </div>
+
+  <table width="100%" style="border-collapse:collapse; margin-top:20px;">
+    <tr>
+
+      <!-- SOLICITADO POR -->
+      <td width="50%" style="text-align:center; vertical-align:top; padding:0 30px;">
+        <div style="font-size:12px; font-weight:bold; margin-bottom:30px;">
+          Solicitado por
+        </div>
+
+        <div style="height:40px;"></div>
+
+        <div style="height:3px; width:80%; margin:0 auto; background:#0068ab;"></div>
+
+        <div style="margin-top:8px; font-size:12px; font-weight:600;">
+          {{ solicitado_por_nombre }}
+        </div>
+
+        <div style="font-size:10px; color:#555; margin-top:2px;">
+          {{ solicitado_por_cargo }}
+        </div>
+      </td>
+
+      <!-- AUTORIZADO POR -->
+      <td width="50%" style="text-align:center; vertical-align:top; padding:0 30px;">
+        <div style="font-size:12px; font-weight:bold; margin-bottom:30px;">
+          Autorizado por
+        </div>
+
+        <div style="height:40px;"></div>
+
+        <div style="height:3px; width:80%; margin:0 auto; background:#0068ab;"></div>
+
+        <div style="margin-top:8px; font-size:12px; font-weight:600;">
+          {{ autorizado_por_nombre }}
+        </div>
+
+        <div style="font-size:10px; color:#555; margin-top:2px;">
+          {{ autorizado_por_cargo }}
+        </div>
+      </td>
+
+    </tr>
+  </table>
+
+  <!-- LÍNEAS INFERIORES -->
+  <table width="100%" style="border-collapse:collapse; margin-top:16px;">
+    <tr>
+      <td style="height:6px; background:#0068ab;"></td>
+    </tr>
+    <tr>
+      <td style="height:2px; background:#e5e7eb;"></td>
+    </tr>
+  </table>
+
+</div>
 
 </body>
 </html>
