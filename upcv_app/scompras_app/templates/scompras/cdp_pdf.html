@@ -148,43 +148,6 @@
     .center{ text-align:center; }
     .text-end{ text-align:right; }
 
-    .firma-table{
-      width:100%;
-      border-collapse:collapse;
-      table-layout:fixed;
-    }
-    .firma-cell{
-      text-align:center;
-      vertical-align:top;
-      padding:0 8px;
-      font-size:10px;
-    }
-    .firma-titulo{
-      font-weight:bold;
-      margin-bottom:10px;
-    }
-    .firma-espacio{
-      height:28px;
-    }
-    .firma-linea-gris{
-      border-top:1px solid #777;
-      margin:0 auto 6px;
-      width:100%;
-    }
-    .firma-linea-azul{
-      border-top:3px solid #0068ab;
-      margin:0 auto 6px;
-      width:100%;
-    }
-    .firma-nombre{
-      font-size:10px;
-      font-weight:bold;
-    }
-    .firma-cargo{
-      font-size:9px;
-      color:#333;
-    }
-
     #img-movible{
       width: 720px;
       height: auto;
@@ -326,32 +289,38 @@
   </table>
 
   <div id="footer_content">
-    <table class="firma-table">
+    <table width="100%" style="border-collapse:collapse; margin-top:18px;">
       <tr>
-        <td width="33%" class="firma-cell">
-          <div class="firma-titulo">Encargado de Compras</div>
-          <div class="firma-espacio"></div>
-          <div class="firma-linea-gris"></div>
-          <div class="firma-linea-azul"></div>
-          <div class="firma-nombre">{{ encargado_nombre }}</div>
-          <div class="firma-cargo">Encargado de Compras</div>
+        <td width="50%" style="text-align:center; vertical-align:top; padding-left:40px; padding-right:10px;">
+          <div style="font-size:12px; font-weight:bold; margin-bottom:6px;">SOLICITADO POR</div>
+          <div style="height:40px;"></div>
+          <div style="height:3px; width:85%; margin:0 auto; background:#0068ab;"></div>
+          <div style="margin-top:8px; font-size:12px; font-weight:600;">
+            {{ solicitado_por_nombre }}
+          </div>
+          <div style="font-size:10px; color:#555; margin-top:2px;">
+            {{ solicitado_por_cargo }}
+          </div>
         </td>
-        <td width="33%" class="firma-cell">
-          <div class="firma-titulo">Vo. Bo.</div>
-          <div class="firma-espacio"></div>
-          <div class="firma-linea-gris"></div>
-          <div class="firma-linea-azul"></div>
-          <div class="firma-nombre">{{ vobo_nombre }}</div>
-          <div class="firma-cargo">{{ vobo_cargo }}</div>
+        <td width="50%" style="text-align:center; vertical-align:top; padding-left:10px; padding-right:40px;">
+          <div style="font-size:12px; font-weight:bold; margin-bottom:6px;">AUTORIZADO POR</div>
+          <div style="height:40px;"></div>
+          <div style="height:3px; width:85%; margin:0 auto; background:#0068ab;"></div>
+          <div style="margin-top:8px; font-size:12px; font-weight:600;">
+            {{ autorizado_por_nombre }}
+          </div>
+          <div style="font-size:10px; color:#555; margin-top:2px;">
+            {{ autorizado_por_cargo }}
+          </div>
         </td>
-        <td width="33%" class="firma-cell">
-          <div class="firma-titulo">&nbsp;</div>
-          <div class="firma-espacio"></div>
-          <div class="firma-linea-gris"></div>
-          <div class="firma-linea-azul"></div>
-          <div class="firma-nombre">&nbsp;</div>
-          <div class="firma-cargo">&nbsp;</div>
-        </td>
+      </tr>
+    </table>
+    <table width="100%" style="border-collapse:collapse; margin-top:14px;">
+      <tr>
+        <td style="height:6px; background:#0068ab;"></td>
+      </tr>
+      <tr>
+        <td style="height:2px; background:#e5e7eb;"></td>
       </tr>
     </table>
     <img id="img-movible" src="{% static 'assets/images/login/firmas.png' %}" alt="Firmas">

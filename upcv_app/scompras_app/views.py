@@ -1757,6 +1757,8 @@ def generar_pdf_cdp(request, cdp_id):
         correlativo_constancia = str(constancia.numero).zfill(5)
 
     encargado_nombre = request.user.get_full_name() or request.user.username
+    autorizado_por_nombre = encargado_nombre
+    autorizado_por_cargo = "Encargado de Compras"
     vobo_nombre = "________________"
     vobo_cargo = "________________"
     if solicitud and solicitud.seccion:
@@ -1764,6 +1766,8 @@ def generar_pdf_cdp(request, cdp_id):
             vobo_nombre = solicitud.seccion.firmante_nombre
         if solicitud.seccion.firmante_cargo:
             vobo_cargo = solicitud.seccion.firmante_cargo
+    solicitado_por_nombre = vobo_nombre
+    solicitado_por_cargo = vobo_cargo
 
     logo1_url = None
     logo2_url = None
@@ -1789,6 +1793,10 @@ def generar_pdf_cdp(request, cdp_id):
         "detalles_cdp": detalles_cdp,
         "total_reservado": total_reservado,
         "encargado_nombre": encargado_nombre,
+        "solicitado_por_nombre": solicitado_por_nombre,
+        "solicitado_por_cargo": solicitado_por_cargo,
+        "autorizado_por_nombre": autorizado_por_nombre,
+        "autorizado_por_cargo": autorizado_por_cargo,
         "vobo_nombre": vobo_nombre,
         "vobo_cargo": vobo_cargo,
         "usuario_imprime": request.user,
