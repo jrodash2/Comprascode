@@ -1,0 +1,316 @@
+{% load static %}
+{% load money %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>CDP</title>
+
+  <style>
+    @page {
+      size: letter;
+      margin: 18px;
+
+      @frame content_frame {
+        left: 18px; right: 18px;
+        top: 18px; bottom: 140px;
+      }
+
+      @frame footer_frame {
+        left: 18px; right: 18px;
+        bottom: 18px;
+        height: 120px;
+        -pdf-frame-content: footer_content;
+      }
+    }
+
+    body{
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      margin: 0;
+      color:#111;
+    }
+
+    .hdr{
+      width:100%;
+      border-collapse:collapse;
+      margin-bottom:6px;
+    }
+    .hdr td{ vertical-align:middle; padding:0; }
+
+    .logos{
+      width:62%;
+      white-space:nowrap;
+    }
+    .logos img{
+      height:78px;
+      width:auto;
+      margin-right:8px;
+      vertical-align:middle;
+    }
+
+    .titlebox{
+      width:38%;
+      border:1px solid #444;
+      padding:6px 8px;
+      font-size:10px;
+    }
+    .titlebox .t{
+      font-size:12px;
+      font-weight:bold;
+      text-align:center;
+      margin:0 0 4px 0;
+      letter-spacing:.3px;
+    }
+    .titlebox p{ margin:0; line-height:1.25; }
+
+    .info{
+      width:100%;
+      border-collapse:collapse;
+      margin-bottom:10px;
+      table-layout:fixed;
+    }
+
+    .info td{
+      border:1px solid #444;
+      padding:7px 10px;
+      font-size:10px;
+      line-height:1.35;
+      vertical-align:top;
+    }
+
+    .info .box-title{
+      display:block;
+      font-weight:bold;
+      font-size:9px;
+      text-transform:uppercase;
+      letter-spacing:.3px;
+      color:#111;
+      margin-bottom:4px;
+      padding:3px 6px;
+      border:1px solid #bbb;
+      background:#f3f3f3;
+    }
+
+    .info .row{
+      margin:0;
+      padding:0;
+    }
+
+    .info .label{
+      font-weight:bold;
+      display:inline-block;
+      width:78px;
+      color:#222;
+    }
+
+    .info .value{
+      color:#111;
+    }
+
+    .ptext{
+      margin:0 0 6px;
+      font-size:10px;
+      line-height:1.25;
+    }
+
+    .subtitle{
+      font-size:10px;
+      font-weight:bold;
+      margin:8px 0 4px;
+    }
+
+    .table{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+    }
+
+    .table th, .table td{
+      border:1px solid #999;
+      padding:4px 5px;
+      font-size:9px;
+      line-height:1.2;
+      vertical-align:top;
+      word-wrap: break-word;
+    }
+
+    .table th{
+      background:#f2f2f2;
+      text-align:center;
+      font-weight:bold;
+    }
+
+    .w-cdp { width:12%; }
+    .w-reng { width:58%; }
+    .w-mont { width:15%; }
+    .w-est { width:15%; }
+    .center{ text-align:center; }
+    .text-end{ text-align:right; }
+
+    .firma-table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:10px;
+      table-layout:fixed;
+    }
+    .firma-title{
+      font-size:10px;
+      font-weight:bold;
+      margin-bottom:6px;
+    }
+    .firma-line{
+      border-top:1px solid #333;
+      margin-top:24px;
+      padding-top:4px;
+      font-size:9px;
+      text-align:center;
+    }
+    .firma-cargo{
+      font-size:9px;
+      text-align:center;
+      color:#333;
+    }
+  </style>
+</head>
+
+<body>
+
+  <table class="hdr">
+    <tr>
+      <td class="logos">
+        {% if logo2_url %}
+          <img src="{{ logo2_url }}" alt="Logo 2" />
+        {% endif %}
+        {% if logo1_url %}
+          <img src="{{ logo1_url }}" alt="Logo 1" />
+        {% endif %}
+      </td>
+      <td>
+        <div class="titlebox">
+          <div class="t">Constancia de Disponibilidad Presupuestaria</div>
+          <p><strong>Solicitud:</strong>
+            {% if solicitud %}
+              {% if solicitud.codigo_correlativo %}
+                {{ solicitud.codigo_correlativo }}
+              {% else %}
+                {{ solicitud.id }}
+              {% endif %}
+            {% else %}
+              -
+            {% endif %}
+          </p>
+          <p><strong>Constancia No.:</strong> {{ correlativo_constancia }}-{{ ejercicio_fiscal }}</p>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="info">
+    <tr>
+      <td width="50%">
+        <span class="box-title">Información general</span>
+        <div class="row">
+          <span class="label">Solicitud:</span>
+          <span class="value">
+            {% if solicitud %}
+              {% if solicitud.codigo_correlativo %}
+                {{ solicitud.codigo_correlativo }}
+              {% else %}
+                {{ solicitud.id }}
+              {% endif %}
+            {% else %}
+              -
+            {% endif %}
+          </span>
+        </div>
+        <div class="row">
+          <span class="label">Fecha:</span>
+          <span class="value">{{ fecha_solicitud_formateada }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Sección:</span>
+          <span class="value">
+            {% if solicitud and solicitud.seccion %}
+              {{ solicitud.seccion.nombre }}
+            {% else %}
+              -
+            {% endif %}
+          </span>
+        </div>
+      </td>
+      <td width="50%">
+        <span class="box-title">&nbsp;</span>
+        <div class="row">
+          <span class="label">Departamento:</span>
+          <span class="value">
+            {% if solicitud and solicitud.seccion and solicitud.seccion.departamento %}
+              {{ solicitud.seccion.departamento.nombre }}
+            {% else %}
+              -
+            {% endif %}
+          </span>
+        </div>
+        <div class="row">
+          <span class="label">Ejercicio:</span>
+          <span class="value">{{ ejercicio_fiscal }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Justificación:</span>
+          <span class="value">{{ solicitud.descripcion|default:"Ninguna" }}</span>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th class="w-cdp">CDP No.</th>
+        <th class="w-reng">Renglón</th>
+        <th class="w-mont">Monto Reservado</th>
+        <th class="w-est">Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if detalles_cdp %}
+        {% for item in detalles_cdp %}
+          <tr>
+            <td class="center w-cdp">{{ item.cdp_numero }}</td>
+            <td class="w-reng">{{ item.renglon_compacto }}</td>
+            <td class="text-end w-mont">{{ item.monto|money_gtq }}</td>
+            <td class="center w-est">{{ item.estado }}</td>
+          </tr>
+        {% endfor %}
+        <tr>
+          <td colspan="2" class="text-end"><strong>Total general</strong></td>
+          <td class="text-end"><strong>{{ total_reservado|money_gtq }}</strong></td>
+          <td class="center w-est">-</td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="4" class="center">No hay CDP registrados para esta solicitud.</td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+
+  <div id="footer_content">
+    <table class="firma-table">
+      <tr>
+        <td width="50%">
+          <div class="firma-title">Encargado de Compras</div>
+          <div class="firma-line">{{ encargado_nombre }}</div>
+          <div class="firma-cargo">Encargado de Compras</div>
+        </td>
+        <td width="50%">
+          <div class="firma-title">Vo. Bo.</div>
+          <div class="firma-line">{{ vobo_nombre }}</div>
+          <div class="firma-cargo">{{ vobo_cargo }}</div>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+</body>
+</html>
