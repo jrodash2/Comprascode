@@ -151,25 +151,46 @@
     .firma-table{
       width:100%;
       border-collapse:collapse;
-      margin-top:10px;
       table-layout:fixed;
     }
-    .firma-title{
+    .firma-cell{
+      text-align:center;
+      vertical-align:top;
+      padding:0 8px;
+      font-size:10px;
+    }
+    .firma-titulo{
+      font-weight:bold;
+      margin-bottom:10px;
+    }
+    .firma-espacio{
+      height:28px;
+    }
+    .firma-linea-gris{
+      border-top:1px solid #777;
+      margin:0 auto 6px;
+      width:100%;
+    }
+    .firma-linea-azul{
+      border-top:3px solid #0068ab;
+      margin:0 auto 6px;
+      width:100%;
+    }
+    .firma-nombre{
       font-size:10px;
       font-weight:bold;
-      margin-bottom:6px;
-    }
-    .firma-line{
-      border-top:3px solid #0068ab;
-      margin-top:24px;
-      padding-top:4px;
-      font-size:9px;
-      text-align:center;
     }
     .firma-cargo{
       font-size:9px;
-      text-align:center;
       color:#333;
+    }
+
+    #img-movible{
+      width: 720px;
+      height: auto;
+      margin-left: 35px;
+      margin-top: 6px;
+      display:block;
     }
   </style>
 </head>
@@ -307,23 +328,33 @@
   <div id="footer_content">
     <table class="firma-table">
       <tr>
-        <td width="33%">
-          <div class="firma-title">Encargado de Compras</div>
-          <div class="firma-line">{{ encargado_nombre }}</div>
+        <td width="33%" class="firma-cell">
+          <div class="firma-titulo">Encargado de Compras</div>
+          <div class="firma-espacio"></div>
+          <div class="firma-linea-gris"></div>
+          <div class="firma-linea-azul"></div>
+          <div class="firma-nombre">{{ encargado_nombre }}</div>
           <div class="firma-cargo">Encargado de Compras</div>
         </td>
-        <td width="33%">
-          <div class="firma-title">Vo. Bo.</div>
-          <div class="firma-line">{{ vobo_nombre }}</div>
+        <td width="33%" class="firma-cell">
+          <div class="firma-titulo">Vo. Bo.</div>
+          <div class="firma-espacio"></div>
+          <div class="firma-linea-gris"></div>
+          <div class="firma-linea-azul"></div>
+          <div class="firma-nombre">{{ vobo_nombre }}</div>
           <div class="firma-cargo">{{ vobo_cargo }}</div>
         </td>
-        <td width="33%">
-          <div class="firma-title">&nbsp;</div>
-          <div class="firma-line">&nbsp;</div>
+        <td width="33%" class="firma-cell">
+          <div class="firma-titulo">&nbsp;</div>
+          <div class="firma-espacio"></div>
+          <div class="firma-linea-gris"></div>
+          <div class="firma-linea-azul"></div>
+          <div class="firma-nombre">&nbsp;</div>
           <div class="firma-cargo">&nbsp;</div>
         </td>
       </tr>
     </table>
+    <img id="img-movible" src="{% static 'assets/images/login/firmas.png' %}" alt="Firmas">
   </div>
 
 </body>
