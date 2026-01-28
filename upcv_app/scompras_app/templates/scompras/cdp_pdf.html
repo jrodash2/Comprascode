@@ -188,8 +188,19 @@
       </td>
       <td>
         <div class="titlebox">
-          <div class="t">CERTIFICADO DE DISPONIBILIDAD PRESUPUESTARIA (CDP)</div>
-          <p><strong>CDP No.:</strong> {{ cdp_correlativo_5 }}</p>
+          <div class="t">Constancia de Disponibilidad Presupuestaria</div>
+          <p><strong>Solicitud:</strong>
+            {% if solicitud %}
+              {% if solicitud.codigo_correlativo %}
+                {{ solicitud.codigo_correlativo }}
+              {% else %}
+                {{ solicitud.id }}
+              {% endif %}
+            {% else %}
+              -
+            {% endif %}
+          </p>
+          <p><strong>Constancia No.:</strong> {{ correlativo_constancia }}-{{ ejercicio_fiscal }}</p>
         </div>
       </td>
     </tr>
@@ -197,7 +208,7 @@
 
   <table class="info">
     <tr>
-      <td width="100%">
+      <td width="50%">
         <span class="box-title">Información general</span>
         <div class="row">
           <span class="label">Solicitud:</span>
@@ -227,6 +238,9 @@
             {% endif %}
           </span>
         </div>
+      </td>
+      <td width="50%">
+        <span class="box-title">&nbsp;</span>
         <div class="row">
           <span class="label">Departamento:</span>
           <span class="value">
@@ -243,7 +257,7 @@
         </div>
         <div class="row">
           <span class="label">Justificación:</span>
-          <span class="value">{{ justificacion }}</span>
+          <span class="value">{{ solicitud.descripcion|default:"Ninguna" }}</span>
         </div>
       </td>
     </tr>

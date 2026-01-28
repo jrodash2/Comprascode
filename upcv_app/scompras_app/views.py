@@ -52,6 +52,7 @@ from .models import (
     ServicioSolicitud,
     CDP,
     CDO,
+    ConstanciaDisponibilidad,
     PresupuestoRenglon,
     PresupuestoAnual,
     TransferenciaPresupuestaria,
@@ -1720,13 +1721,39 @@ def generar_pdf_cdp(request, cdp_id):
     if cdps:
         ejercicio_fiscal = cdps[0].renglon.presupuesto_anual.anio if cdps[0].renglon.presupuesto_anual else "-"
 
-    cdp_correlativo_5 = str(cdp.id).zfill(5)
     fecha_solicitud_formateada = "-"
     justificacion = "—"
     if solicitud:
         fecha_solicitud = localtime(solicitud.fecha_solicitud)
         fecha_solicitud_formateada = django_date(fecha_solicitud, 'j \\d\\e F \\d\\e Y')
         justificacion = solicitud.descripcion or "—"
+
+    constancia = None
+    correlativo_constancia = str(cdp.id).zfill(5)
+    if solicitud:
+        if ejercicio_fiscal == "-":
+            presupuesto_activo = PresupuestoAnual.presupuesto_activo()
+            ejercicio_fiscal = presupuesto_activo.anio if presupuesto_activo else datetime.now().year
+        with transaction.atomic():
+            constancia = (
+                ConstanciaDisponibilidad.objects.select_for_update()
+                .filter(solicitud=solicitud)
+                .first()
+            )
+            if not constancia:
+                ultimo = (
+                    ConstanciaDisponibilidad.objects.select_for_update()
+                    .order_by('-numero')
+                    .first()
+                )
+                siguiente = (ultimo.numero + 1) if ultimo else 1
+                constancia = ConstanciaDisponibilidad.objects.create(
+                    solicitud=solicitud,
+                    numero=siguiente,
+                    ejercicio_fiscal=ejercicio_fiscal,
+                    creado_por=request.user,
+                )
+        correlativo_constancia = str(constancia.numero).zfill(5)
 
     encargado_nombre = request.user.get_full_name() or request.user.username
     vobo_nombre = "________________"
@@ -1747,7 +1774,8 @@ def generar_pdf_cdp(request, cdp_id):
 
     context = {
         "cdp": cdp,
-        "cdp_correlativo_5": cdp_correlativo_5,
+        "constancia": constancia,
+        "correlativo_constancia": correlativo_constancia,
         "solicitud": solicitud,
         "fecha_solicitud_formateada": fecha_solicitud_formateada,
         "justificacion": justificacion,
@@ -1755,6 +1783,7 @@ def generar_pdf_cdp(request, cdp_id):
         "logo1_url": logo1_url,
         "logo2_url": logo2_url,
         "ejercicio_fiscal": ejercicio_fiscal,
+        "cdps": cdps,
         "detalles_cdp": detalles_cdp,
         "total_reservado": total_reservado,
         "encargado_nombre": encargado_nombre,
