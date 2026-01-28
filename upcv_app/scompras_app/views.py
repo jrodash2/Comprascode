@@ -81,6 +81,7 @@ from .utils import (
     grupo_requerido,
     is_admin,
     is_presupuesto,
+    puede_imprimir_cdp,
 )
 from .services.presupuesto_import import import_rows, read_rows
 from django.views.decorators.http import require_GET
@@ -865,6 +866,7 @@ class SolicitudCompraDetailView(DetailView):
 
         presupuesto_activo = PresupuestoAnual.presupuesto_activo()
         context['presupuesto_activo'] = presupuesto_activo
+        context['puede_imprimir_cdp'] = puede_imprimir_cdp(user)
 
         context['puede_crear_cdp'] = (
             usuario_puede_presupuesto
@@ -1652,6 +1654,121 @@ def generar_pdf_solicitud(request, solicitud_id):
         link_callback=link_callback  # ✅ CLAVE para static/media
     )
 
+    if pisa_status.err:
+        return HttpResponse("Error al generar el PDF", status=500)
+
+    return response
+
+
+@login_required
+def generar_pdf_cdp(request, cdp_id):
+    if not puede_imprimir_cdp(request.user):
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"detail": "No autorizado."}, status=403)
+        return redirect(f"/no-autorizado/?next={request.get_full_path()}")
+
+    cdp = get_object_or_404(
+        CDP.objects.select_related(
+            'solicitud',
+            'renglon',
+            'renglon__presupuesto_anual',
+            'renglon__producto',
+            'renglon__subproducto',
+            'solicitud__seccion',
+            'solicitud__seccion__departamento',
+        ),
+        pk=cdp_id,
+    )
+
+    solicitud = getattr(cdp, "solicitud", None)
+    cdps = CDP.objects.none()
+    if solicitud:
+        cdps = (
+            CDP.objects.filter(solicitud=solicitud)
+            .select_related(
+                'renglon',
+                'renglon__presupuesto_anual',
+                'renglon__producto',
+                'renglon__subproducto',
+            )
+            .order_by('id')
+        )
+
+    detalles_cdp = []
+    total_reservado = Decimal('0.00')
+    for item in cdps:
+        renglon_compacto = getattr(item.renglon, "label_compacto", None)
+        if not renglon_compacto:
+            descripcion_renglon = item.renglon.descripcion or "-"
+            renglon_compacto = f"Renglon {item.renglon.codigo_renglon} - {descripcion_renglon}"
+            if item.renglon.producto:
+                renglon_compacto = f"{renglon_compacto} / P-{item.renglon.producto.codigo}"
+            if item.renglon.subproducto:
+                renglon_compacto = f"{renglon_compacto} / SP-{item.renglon.subproducto.codigo}"
+        detalles_cdp.append(
+            {
+                "cdp_numero": str(item.id).zfill(5),
+                "renglon_compacto": renglon_compacto,
+                "monto": item.monto,
+                "estado": item.get_estado_display(),
+            }
+        )
+        total_reservado += item.monto or Decimal('0.00')
+
+    institucion = Institucion.objects.first()
+    ejercicio_fiscal = "-"
+    if cdps:
+        ejercicio_fiscal = cdps[0].renglon.presupuesto_anual.anio if cdps[0].renglon.presupuesto_anual else "-"
+
+    cdp_correlativo_5 = str(cdp.id).zfill(5)
+    fecha_solicitud_formateada = "-"
+    justificacion = "—"
+    if solicitud:
+        fecha_solicitud = localtime(solicitud.fecha_solicitud)
+        fecha_solicitud_formateada = django_date(fecha_solicitud, 'j \\d\\e F \\d\\e Y')
+        justificacion = solicitud.descripcion or "—"
+
+    encargado_nombre = request.user.get_full_name() or request.user.username
+    vobo_nombre = "________________"
+    vobo_cargo = "________________"
+    if solicitud and solicitud.seccion:
+        if solicitud.seccion.firmante_nombre:
+            vobo_nombre = solicitud.seccion.firmante_nombre
+        if solicitud.seccion.firmante_cargo:
+            vobo_cargo = solicitud.seccion.firmante_cargo
+
+    logo1_url = None
+    logo2_url = None
+    if institucion:
+        if institucion.logo:
+            logo1_url = request.build_absolute_uri(institucion.logo.url)
+        if institucion.logo2:
+            logo2_url = request.build_absolute_uri(institucion.logo2.url)
+
+    context = {
+        "cdp": cdp,
+        "cdp_correlativo_5": cdp_correlativo_5,
+        "solicitud": solicitud,
+        "fecha_solicitud_formateada": fecha_solicitud_formateada,
+        "justificacion": justificacion,
+        "institucion": institucion,
+        "logo1_url": logo1_url,
+        "logo2_url": logo2_url,
+        "ejercicio_fiscal": ejercicio_fiscal,
+        "detalles_cdp": detalles_cdp,
+        "total_reservado": total_reservado,
+        "encargado_nombre": encargado_nombre,
+        "vobo_nombre": vobo_nombre,
+        "vobo_cargo": vobo_cargo,
+        "usuario_imprime": request.user,
+        "fecha_impresion": localtime(),
+    }
+
+    html = render_to_string("scompras/cdp_pdf.html", context)
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = 'inline; filename="cdp.pdf"'
+
+    pisa_status = pisa.CreatePDF(html, dest=response, encoding="utf-8")
     if pisa_status.err:
         return HttpResponse("Error al generar el PDF", status=500)
 
