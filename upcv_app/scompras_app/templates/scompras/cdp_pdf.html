@@ -7,106 +7,326 @@
   <title>CDP</title>
 
   <style>
-    @page {
+    /* =========================
+       PDF LAYOUT (xhtml2pdf)
+    ========================== */
+    @page{
       size: letter;
       margin: 18px;
 
-      @frame content_frame {
+      @frame content_frame{
         left: 18px; right: 18px;
-        top: 18px; bottom: 140px;
+        top: 18px; bottom: 155px;
       }
 
-      @frame footer_frame {
+      @frame footer_frame{
         left: 18px; right: 18px;
         bottom: 18px;
-        height: 120px;
+        height: 135px;
         -pdf-frame-content: footer_content;
       }
     }
 
     body{
       font-family: Arial, sans-serif;
-      font-size: 11px;
+      font-size: 10px;
       margin: 0;
-      color:#111;
+      color:#0f172a;
+      background:#ffffff;
     }
 
-    /* Layout general */
-    .page { width: 100%; }
-    .box { border:1px solid #777; padding:8px 10px; }
-    .box-title { background:#e9e9e9; font-weight:bold; font-size:10px; padding:4px 8px; border:1px solid #777; }
+    img{ max-width:100%; height:auto; }
 
-    /* Tablas */
-    .tbl { width:100%; border-collapse:collapse; table-layout:fixed; }
-    .tbl th, .tbl td { border:1px solid #777; padding:6px 8px; font-size:9.5px; vertical-align:top; line-height:1.35; }
-    .tbl th { background:#efefef; font-weight:bold; text-align:center; }
+    /* Helpers */
+    .small{ font-size:8.5px; color:#64748b; }
+    .wrap{ white-space:normal; word-wrap:break-word; }
+    .center{ text-align:center; }
+    .right{ text-align:right; }
 
-    /* Alineaciones */
-    .right { text-align:right; }
-    .center { text-align:center; }
-    .small { font-size:9px; }
+    /* =========================
+       HEADER
+    ========================== */
+    .hdr{ width:100%; border-collapse:collapse; margin-bottom:8px; }
+    .hdr td{ vertical-align:middle; padding:0.3; }
 
-    /* Columna larga (renglón) */
-    .wrap { white-space:normal; word-wrap:break-word; }
-
-    /* Encabezado superior (caja derecha) */
-    .header-right td { font-size:9.5px; padding:4px 6px; }
-    .header-right .lbl { font-weight:bold; width:35%; }
-    .header-right .val { width:65%; }
-
-    /* Bloques información */
-    .info-grid td { vertical-align:top; }
-    .info-left { width:55%; padding-right:6px; }
-    .info-right { width:45%; padding-left:6px; }
-
-    .field-row { border:1px solid #777; padding:6px 8px; margin-top:6px; }
-    .field-label { font-weight:bold; display:inline-block; width:90px; }
-    .field-value { display:inline-block; }
-    .just-wrap { white-space:normal; word-wrap:break-word; }
-
-    .hdr{
-      width:100%;
-      border-collapse:collapse;
-      margin-bottom:6px;
-    }
-    .hdr td{ vertical-align:middle; padding:0; }
-
-    .logos{
-      width:62%;
-      white-space:nowrap;
-    }
+    .logos{ white-space:nowrap; }
     .logos img{
-      height:78px;
+      height:70px;
       width:auto;
       margin-right:8px;
       vertical-align:middle;
     }
 
-    #img-movible{
-      width: 720px;
-      height: auto;
-      margin-left: 35px;
-      margin-top: 6px;
-      display:block;
+    /* Header card */
+    .header-right{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      border:1px solid #e2e8f0;
+      background:#ffffff;
+      border-radius:9px;
+      overflow:hidden;
+    }
+    .header-right th{
+      background:#4496d0;
+      color:#ffffff;
+      text-align:left;
+      padding:7px 8px;
+      font-size:10px;
+      letter-spacing:.2px;
+    }
+    .header-right td{
+      padding:5px 8px;
+      border-top:1px solid #e2e8f0;
+      font-size:9px;
+    }
+    .header-right .lbl{ color:#64748b; width:45%; }
+    .header-right .val{ color:#0b1220; font-weight:700; }
+
+    /* =========================
+       INFO GENERAL (MÁS COMPACTO)
+    ========================== */
+    .box-title{
+      background:#f8fafc;
+      font-weight:800;
+      font-size:9px;
+      padding:6px 8px;
+      border:1px solid #e2e8f0;
+      border-bottom:none;
+      border-radius:9px 9px 0 0;
+      color:#0b1220;
+    }
+    .section-card{
+      border:1px solid #e2e8f0;
+      border-top:none;
+      border-radius:0 0 9px 9px;
+      padding:8px;
+      background:#ffffff;
+    }
+
+    /* ✅ menos separación vertical */
+    .field-row{
+      border:1px solid #e2e8f0;
+      background:#ffffff;
+      padding:4px 6px;      /* 🔽 antes 6px 8px */
+      border-radius:6px;    /* 🔽 antes 7px */
+      margin-top:4px;       /* 🔽 antes 6px */
+    }
+    .field-label{
+      font-weight:800;
+      display:inline-block;
+      width:80px;
+      color:#64748b;
+      font-size:8.8px;
+    }
+    .field-value{
+      display:inline-block;
+      color:#0b1220;
+      font-weight:700;
+      font-size:8.8px;
+    }
+
+    /* ✅ menos aire en justificación */
+    .just-box{
+      margin-top:4px;       /* 🔽 antes 6px */
+      border:1px dashed #e2e8f0;
+      padding:4px 6px;      /* 🔽 antes 6px 8px */
+      border-radius:6px;    /* 🔽 antes 7px */
+      background:#f8fafc;
+      color:#0b1220;
+      line-height:1.20;     /* 🔽 antes 1.35 */
+      font-size:9px;
+    }
+
+    /* =========================
+       TABLA CDP (MÁS COMPACTA)
+    ========================== */
+    .tbl{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      table-layout:fixed;
+      border:1px solid #e2e8f0;
+      border-radius:9px;
+      overflow:hidden;
+      background:#ffffff;
+    }
+    .tbl th{
+      background:#4496d0;
+      color:#ffffff;
+      font-weight:800;
+      text-align:left;
+      padding:4px 6px;      /* 🔽 antes 6px 8px */
+      font-size:8.8px;      /* 🔽 leve */
+      border-right:1px solid #2b7fbe;
+    }
+    .tbl th:last-child{ border-right:none; }
+    .tbl td{
+      padding:4px 6px;      /* 🔽 antes 6px 8px */
+      font-size:8.6px;      /* 🔽 leve */
+      vertical-align:top;
+      line-height:1.15;     /* 🔽 antes 1.25 */
+      border-top:1px solid #e2e8f0;
+    }
+
+    /* Badge */
+    .badge{
+      display:inline-block;
+      padding:2px 6px;
+      border-radius:999px;
+      font-size:8px;
+      font-weight:800;
+      border:1px solid #e2e8f0;
+      background:#f8fafc;
+      color:#0b1220;
+    }
+    .badge.ok{ background:#eaf7ee; border-color:#c7ead3; color:#166534; }
+    .badge.warn{ background:#fff7ed; border-color:#fed7aa; color:#9a3412; }
+    .badge.bad{ background:#fee2e2; border-color:#fecaca; color:#991b1b; }
+
+    /* =========================
+       FOOTER FIRMAS
+    ========================== */
+    .sig-title{
+      font-size:9px;
+      font-weight:900;
+      color:#64748b;
+      text-transform:uppercase;
+      letter-spacing:.6px;
+      margin-bottom:18px;
+    }
+    .sig-line{
+      height:3px;
+      width:82%;
+      margin:0 auto;
+      background:#0068ab;
+      border-radius:999px;
+    }
+    .sig-name{
+      margin-top:6px;
+      font-size:10px;
+      font-weight:900;
+      color:#0b1220;
+      text-transform:uppercase;
+    }
+    .sig-role{
+      font-size:8.5px;
+      color:#64748b;
+      margin-top:2px;
+    }
+
+    .footer-bar-1{ height:6px; background:#0068ab; border-radius:8px; }
+    .footer-bar-2{ height:2px; background:#e2e8f0; margin-top:4px; border-radius:8px; }
+
+    /* ====== TITULO INSTITUCIONAL ====== */
+    .inst-title{
+      margin: 4px 0 8px 0;
+      padding: 6px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 9px;
+      background: #f8fafc;
+      text-align: center;
+    }
+    .inst-title .l1{
+      font-size: 11px;
+      font-weight: 900;
+      color:#0b1220;
+      letter-spacing: .3px;
+      text-transform: uppercase;
+      margin: 0;
+      line-height: 1.2;
+    }
+    .inst-title .l2{
+      font-size: 9px;
+      font-weight: 700;
+      color:#64748b;
+      margin: 2px 0 0 0;
+      line-height: 1.2;
     }
   </style>
 </head>
 
 <body>
+<!-- FOOTER FIJO (NO mover estilos aquí) -->
+<div id="footer_content">
 
-  <table class="hdr">
+  <table width="100%" style="border-collapse:collapse;">
+
     <tr>
-      <td class="logos">
-        {% if logo2_url %}
-          <img src="{{ logo2_url }}" alt="Logo 2" />
-        {% endif %}
-        {% if logo1_url %}
-          <img src="{{ logo1_url }}" alt="Logo 1" />
-        {% endif %}
+      <td width="50%" align="center" valign="top">
+        <b class="sig-title">Solicitado por</b>
       </td>
-      <td>
-        <table class="tbl header-right" style="width:360px; float:right;">
-          <tr><th colspan="2" style="font-size:11px;">Constancia de Disponibilidad Presupuestaria</th></tr>
+
+      <td width="50%" align="center" valign="top">
+        <b class="sig-title">Autorizado por</b>
+      </td>
+    </tr>
+
+    <!-- FILA PARA FIRMA -->
+    <tr style="height:55px;">
+      <td width="50%" align="center" valign="bottom"></td>
+      <td width="50%" align="center" valign="bottom"></td>
+    </tr>
+
+    <tr>
+      <td width="50%" align="center">
+        <div class="sig-line"></div>
+      </td>
+
+      <td width="50%" align="center">
+        <div class="sig-line"></div>
+      </td>
+    </tr>
+
+    <!-- ✅ menos espacio entre línea y nombre -->
+    <tr style="height:4px;">
+      <td></td>
+      <td></td>
+    </tr>
+
+    <tr>
+      <td width="50%" align="center">
+        <div class="sig-name">{{ solicitado_por_nombre }}</div>
+      </td>
+
+      <td width="50%" align="center">
+        <div class="sig-name">{{ autorizado_por_nombre }}</div>
+      </td>
+    </tr>
+
+    <tr>
+      <td width="50%" align="center">
+        <div class="sig-role">{{ solicitado_por_cargo }}</div>
+      </td>
+
+      <td width="50%" align="center">
+        <div class="sig-role">{{ autorizado_por_cargo }}</div>
+      </td>
+    </tr>
+
+  </table>
+
+  <div style="margin-top:12px;">
+    <div class="footer-bar-1"></div>
+    <div class="footer-bar-2"></div>
+  </div>
+
+</div>
+<!-- /FOOTER FIJO -->
+
+  <!-- HEADER -->
+  <table class="hdr" width="100%">
+    <tr>
+      <td class="logos" style="width:65%; vertical-align:middle;">
+        {% if logo2_url %}<img src="{{ logo2_url }}" alt="Logo 2" />{% endif %}
+        {% if logo1_url %}<img src="{{ logo1_url }}" alt="Logo 1" />{% endif %}
+      </td>
+
+      <td style="width:35%; vertical-align:top;">
+        <table class="header-right" width="100%">
+          <tr>
+            <th colspan="2">Constancia de Disponibilidad Presupuestaria</th>
+          </tr>
           <tr>
             <td class="lbl">Solicitud:</td>
             <td class="val">
@@ -116,16 +336,12 @@
                 {% else %}
                   {{ solicitud.id }}
                 {% endif %}
-              {% else %}
-                -
-              {% endif %}
+              {% else %}-{% endif %}
             </td>
           </tr>
           <tr>
             <td class="lbl">Constancia No.:</td>
-            <td class="val">
-              {{ correlativo_constancia }}{% if ejercicio_fiscal %}-{{ ejercicio_fiscal }}{% endif %}
-            </td>
+            <td class="val">{{ correlativo_constancia }}{% if ejercicio_fiscal %}-{{ ejercicio_fiscal }}{% endif %}</td>
           </tr>
           <tr>
             <td class="lbl">Fecha impresión:</td>
@@ -140,101 +356,79 @@
     </tr>
   </table>
 
-  <table class="tbl" style="margin-top:8px;">
-    <tr>
-      <td colspan="2" style="padding:0; border:none;">
-        <div class="box-title">Información general</div>
-      </td>
-    </tr>
-    <tr>
-      <td style="width:50%; border-top:none;">
-        <div class="field-row">
-          <span class="field-label">Solicitud:</span>
-          <span class="field-value">
-            {% if solicitud %}
-              {% if solicitud.codigo_correlativo %}
-                {{ solicitud.codigo_correlativo }}
-              {% else %}
-                {{ solicitud.id }}
-              {% endif %}
-            {% else %}
-              -
-            {% endif %}
-          </span>
-        </div>
+  <div class="inst-title">
+    <div class="l1">Unidad Para La Prevención Comunitaria De La Violencia</div>
 
-        <div class="field-row">
-          <span class="field-label">Fecha:</span>
-          <span class="field-value">
-            {% if solicitud %}
-              {{ solicitud.fecha_solicitud|date:"d \\d\\e F \\d\\e Y" }}
-            {% else %}
-              -
-            {% endif %}
-          </span>
-        </div>
-      </td>
-      <td style="width:50%; border-top:none;">
-        <div class="field-row">
-          <span class="field-label">Departamento:</span>
-          <span class="field-value">
-            {% if solicitud and solicitud.seccion and solicitud.seccion.departamento %}
-              {{ solicitud.seccion.departamento.nombre }}
-            {% else %}
-              -
-            {% endif %}
-          </span>
-        </div>
+  </div>
 
-        <div class="field-row">
-          <span class="field-label">Sección:</span>
-          <span class="field-value">
-            {% if solicitud and solicitud.seccion %}
-              {{ solicitud.seccion.nombre }}
-            {% else %}
-              -
-            {% endif %}
+  <!-- INFO GENERAL -->
+ 
+  <div class="section-card">
+    <table width="100%" style="border-collapse:collapse;">
+      <tr>
+        <td style="width:50%; padding-right:6px; vertical-align:top;">
+          <div class="field-row">
+            <span class="field-label">Solicitud:</span>
+            <span class="field-value">
+              {% if solicitud %}
+                {% if solicitud.codigo_correlativo %}
+                  {{ solicitud.codigo_correlativo }}
+                {% else %}
+                  {{ solicitud.id }}
+                {% endif %}
+              {% else %}-{% endif %}
+            </span>
           </div>
-        </div>
-      </td>
-    </tr>
-    <tr>
-      <td colspan="2">
-        <div class="field-row" style="margin-top:0;">
-          <span class="field-label" style="width:auto;">Justificación:</span>
-          <div class="box just-wrap" style="margin-top:6px;">
-            {{ solicitud.descripcion|default:"Ninguna" }}
-          </div>
-        </div>
-      </td>
-    </tr>
-    <tr>
-      <td colspan="2">
-        <div class="field-row" style="margin-top:0;">
-          <span class="field-label" style="width:auto;">Justificación:</span>
-          <div class="box just-wrap" style="margin-top:6px;">
-            {{ solicitud.descripcion|default:"Ninguna" }}
-          </div>
-        </div>
-      </td>
-    </tr>
-    <tr>
-      <td colspan="2">
-        <div class="field-row" style="margin-top:0;">
-          <span class="field-label" style="width:auto;">Justificación:</span>
-          <div class="box just-wrap" style="margin-top:6px;">
-            {{ solicitud.descripcion|default:"Ninguna" }}
-          </div>
-        </div>
-      </td>
-    </tr>
-  </table>
 
+          <div class="field-row">
+            <span class="field-label">Fecha:</span>
+            <span class="field-value">
+              {% if solicitud %}
+                {{ solicitud.fecha_solicitud|date:"d \\d\\e F \\d\\e Y" }}
+              {% else %}-{% endif %}
+            </span>
+          </div>
+        </td>
+
+        <td style="width:50%; padding-left:6px; vertical-align:top;">
+          <div class="field-row">
+            <span class="field-label">Depto.:</span>
+            <span class="field-value">
+              {% if solicitud and solicitud.seccion and solicitud.seccion.departamento %}
+                {{ solicitud.seccion.departamento.nombre }}
+              {% else %}-{% endif %}
+            </span>
+          </div>
+
+         {% if solicitud and solicitud.seccion %}
+  {% if solicitud.seccion.departamento and solicitud.seccion.departamento.nombre|lower == solicitud.seccion.nombre|lower %}
+    {# ✅ Si Depto == Sección, NO mostrar la Sección #}
+  {% else %}
+    <div class="field-row">
+      <span class="field-label">Sección:</span>
+      <span class="field-value">{{ solicitud.seccion.nombre }}</span>
+    </div>
+  {% endif %}
+{% endif %}
+
+        </td>
+      </tr>
+    </table>
+
+    <div class="field-row" style="margin-top:4px;">
+  
+      <div class="just-box">
+       <span class="field-label" style="width:auto;">Justificación:</span> {{ solicitud.descripcion|default:"Ninguna" }}
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLA CDP -->
   <table class="tbl" style="margin-top:10px;">
     <tr>
-      <th style="width:12%;">CDP No.</th>
-      <th style="width:58%;">Renglón</th>
-      <th style="width:18%;">Monto Reservado</th>
+      <th style="width:10%;">CDP No.</th>
+      <th style="width:62%;">Renglón</th>
+      <th style="width:16%;">Monto</th>
       <th style="width:12%;">Estado</th>
     </tr>
 
@@ -243,15 +437,27 @@
       <tr>
         <td class="center">{{ item.cdp_numero }}</td>
         <td class="wrap">{{ item.renglon_compacto }}</td>
-        <td class="right">{{ item.monto|money_gtq }}</td>
-        <td class="center">{{ item.estado }}</td>
+        <td class="right"><b>{{ item.monto|money_gtq }}</b></td>
+        <td class="center">
+          {% with st=item.estado|lower %}
+            {% if "aprob" in st or "activo" in st or "vigente" in st or "reserv" in st %}
+              <span class="badge ok">{{ item.estado }}</span>
+            {% elif "pend" in st %}
+              <span class="badge warn">{{ item.estado }}</span>
+            {% elif "anul" in st or "rech" in st %}
+              <span class="badge bad">{{ item.estado }}</span>
+            {% else %}
+              <span class="badge">{{ item.estado }}</span>
+            {% endif %}
+          {% endwith %}
+        </td>
       </tr>
       {% endfor %}
 
       <tr>
         <td colspan="2" class="right"><b>Total general</b></td>
         <td class="right"><b>{{ total_reservado|money_gtq }}</b></td>
-        <td class="center">-</td>
+        <td class="center"><span class="badge">—</span></td>
       </tr>
     {% else %}
       <tr>
@@ -259,64 +465,6 @@
       </tr>
     {% endif %}
   </table>
-
-  <div id="footer_content">
-
-  <table width="100%" style="border-collapse:collapse; margin-top:20px;">
-    <tr>
-
-      <!-- SOLICITADO POR -->
-      <td width="50%" style="text-align:center; vertical-align:top; padding:0 30px;">
-        <div style="font-size:12px; font-weight:bold; margin-bottom:30px;">
-          Solicitado por
-        </div>
-
-        <div style="height:40px;"></div>
-
-        <div style="height:3px; width:80%; margin:0 auto; background:#0068ab;"></div>
-
-        <div style="margin-top:8px; font-size:12px; font-weight:600;">
-          {{ solicitado_por_nombre }}
-        </div>
-
-        <div style="font-size:10px; color:#555; margin-top:2px;">
-          {{ solicitado_por_cargo }}
-        </div>
-      </td>
-
-      <!-- AUTORIZADO POR -->
-      <td width="50%" style="text-align:center; vertical-align:top; padding:0 30px;">
-        <div style="font-size:12px; font-weight:bold; margin-bottom:30px;">
-          Autorizado por
-        </div>
-
-        <div style="height:40px;"></div>
-
-        <div style="height:3px; width:80%; margin:0 auto; background:#0068ab;"></div>
-
-        <div style="margin-top:8px; font-size:12px; font-weight:600;">
-          {{ autorizado_por_nombre }}
-        </div>
-
-        <div style="font-size:10px; color:#555; margin-top:2px;">
-          {{ autorizado_por_cargo }}
-        </div>
-      </td>
-
-    </tr>
-  </table>
-
-  <!-- LÍNEAS INFERIORES -->
-  <table width="100%" style="border-collapse:collapse; margin-top:16px;">
-    <tr>
-      <td style="height:6px; background:#0068ab;"></td>
-    </tr>
-    <tr>
-      <td style="height:2px; background:#e5e7eb;"></td>
-    </tr>
-  </table>
-
-</div>
 
 </body>
 </html>
