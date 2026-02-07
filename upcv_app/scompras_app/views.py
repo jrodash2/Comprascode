@@ -2218,28 +2218,39 @@ def importar_excel(request):
         if form.is_valid() and fecha_form.is_valid():  # Validar ambos formularios
             archivo = request.FILES['archivo_excel']
             df = pd.read_excel(archivo)
+            ahora = timezone.now()
 
-            # Eliminar los datos anteriores
-            Insumo.objects.all().delete()
+            with transaction.atomic():
+                for _, row in df.iterrows():
+                    codigo_insumo = row['CÓDIGO DE INSUMO']
+                    codigo_presentacion = row['CÓDIGO DE PRESENTACIÓN']
+                    insumo = (
+                        Insumo.objects.filter(
+                            codigo_insumo=codigo_insumo,
+                            codigo_presentacion=codigo_presentacion,
+                        )
+                        .order_by('id')
+                        .first()
+                    )
+                    insumo_data = {
+                        'renglon': row['RENGLÓN'],
+                        'nombre': row['NOMBRE'],
+                        'caracteristicas': row['CARACTERÍSTICAS'],
+                        'nombre_presentacion': row['NOMBRE DE LA PRESENTACIÓN'],
+                        'cantidad_unidad_presentacion': row['CANTIDAD Y UNIDAD DE MEDIDA DE LA PRESENTACIÓN'],
+                        'fecha_actualizacion': ahora,
+                    }
 
-            # Crear una lista para guardar los objetos que se crearán
-            nuevos_insumos = []
-
-            for _, row in df.iterrows():
-                insumo = Insumo(
-                    renglon=row['RENGLÓN'],
-                    codigo_insumo=row['CÓDIGO DE INSUMO'],
-                    nombre=row['NOMBRE'],
-                    caracteristicas=row['CARACTERÍSTICAS'],
-                    nombre_presentacion=row['NOMBRE DE LA PRESENTACIÓN'],
-                    cantidad_unidad_presentacion=row['CANTIDAD Y UNIDAD DE MEDIDA DE LA PRESENTACIÓN'],
-                    codigo_presentacion=row['CÓDIGO DE PRESENTACIÓN'],
-                    fecha_actualizacion=timezone.now()
-                )
-                nuevos_insumos.append(insumo)
-
-            # Guardar todos los nuevos insumos de una vez
-            Insumo.objects.bulk_create(nuevos_insumos)
+                    if insumo:
+                        for field, value in insumo_data.items():
+                            setattr(insumo, field, value)
+                        insumo.save(update_fields=list(insumo_data.keys()))
+                    else:
+                        Insumo.objects.create(
+                            codigo_insumo=codigo_insumo,
+                            codigo_presentacion=codigo_presentacion,
+                            **insumo_data,
+                        )
 
             # Aquí es donde se captura la fecha del formulario de fecha
             fecha_in = fecha_form.save(commit=False)
