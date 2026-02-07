@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import logging
 from django.utils.timezone import localtime
 from django.utils import timezone
 from venv import logger
@@ -118,6 +119,8 @@ from smtplib import SMTPException
 from django.db.models import Count
 from django.db.models.functions import ExtractYear, ExtractMonth
 from datetime import date
+
+logger = logging.getLogger(__name__)
 from xhtml2pdf import pisa
 from io import BytesIO
 from django.contrib.auth.backends import ModelBackend
@@ -2218,28 +2221,68 @@ def importar_excel(request):
         if form.is_valid() and fecha_form.is_valid():  # Validar ambos formularios
             archivo = request.FILES['archivo_excel']
             df = pd.read_excel(archivo)
+            ahora = timezone.now()
+            total_filas = len(df.index)
+            creados = 0
+            actualizados = 0
+            errores = 0
 
-            # Eliminar los datos anteriores
-            Insumo.objects.all().delete()
+            logger.info(
+                "Importación de insumos: archivo=%s tamaño=%s filas=%s",
+                getattr(archivo, 'name', 'sin_nombre'),
+                getattr(archivo, 'size', 'sin_tamano'),
+                total_filas,
+            )
 
-            # Crear una lista para guardar los objetos que se crearán
-            nuevos_insumos = []
+            with transaction.atomic():
+                for _, row in df.iterrows():
+                    try:
+                        codigo_insumo = row['CÓDIGO DE INSUMO']
+                        codigo_presentacion = row['CÓDIGO DE PRESENTACIÓN']
+                        insumo = (
+                            Insumo.objects.filter(
+                                codigo_insumo=codigo_insumo,
+                                codigo_presentacion=codigo_presentacion,
+                            )
+                            .order_by('id')
+                            .first()
+                        )
+                        insumo_data = {
+                            'renglon': row['RENGLÓN'],
+                            'nombre': row['NOMBRE'],
+                            'caracteristicas': row['CARACTERÍSTICAS'],
+                            'nombre_presentacion': row['NOMBRE DE LA PRESENTACIÓN'],
+                            'cantidad_unidad_presentacion': row['CANTIDAD Y UNIDAD DE MEDIDA DE LA PRESENTACIÓN'],
+                            'fecha_actualizacion': ahora,
+                        }
 
-            for _, row in df.iterrows():
-                insumo = Insumo(
-                    renglon=row['RENGLÓN'],
-                    codigo_insumo=row['CÓDIGO DE INSUMO'],
-                    nombre=row['NOMBRE'],
-                    caracteristicas=row['CARACTERÍSTICAS'],
-                    nombre_presentacion=row['NOMBRE DE LA PRESENTACIÓN'],
-                    cantidad_unidad_presentacion=row['CANTIDAD Y UNIDAD DE MEDIDA DE LA PRESENTACIÓN'],
-                    codigo_presentacion=row['CÓDIGO DE PRESENTACIÓN'],
-                    fecha_actualizacion=timezone.now()
-                )
-                nuevos_insumos.append(insumo)
+                        if insumo:
+                            for field, value in insumo_data.items():
+                                setattr(insumo, field, value)
+                            insumo.save(update_fields=list(insumo_data.keys()))
+                            actualizados += 1
+                        else:
+                            Insumo.objects.create(
+                                codigo_insumo=codigo_insumo,
+                                codigo_presentacion=codigo_presentacion,
+                                **insumo_data,
+                            )
+                            creados += 1
+                    except Exception:
+                        errores += 1
+                        logger.exception(
+                            "Error al importar insumo fila=%s datos=%s",
+                            _,
+                            row.to_dict(),
+                        )
 
-            # Guardar todos los nuevos insumos de una vez
-            Insumo.objects.bulk_create(nuevos_insumos)
+            logger.info(
+                "Importación de insumos completada: filas=%s creados=%s actualizados=%s errores=%s",
+                total_filas,
+                creados,
+                actualizados,
+                errores,
+            )
 
             # Aquí es donde se captura la fecha del formulario de fecha
             fecha_in = fecha_form.save(commit=False)
