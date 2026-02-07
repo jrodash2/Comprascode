@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import logging
 from django.utils.timezone import localtime
 from django.utils import timezone
 from venv import logger
@@ -118,6 +119,8 @@ from smtplib import SMTPException
 from django.db.models import Count
 from django.db.models.functions import ExtractYear, ExtractMonth
 from datetime import date
+
+logger = logging.getLogger(__name__)
 from xhtml2pdf import pisa
 from io import BytesIO
 from django.contrib.auth.backends import ModelBackend
@@ -2219,38 +2222,67 @@ def importar_excel(request):
             archivo = request.FILES['archivo_excel']
             df = pd.read_excel(archivo)
             ahora = timezone.now()
+            total_filas = len(df.index)
+            creados = 0
+            actualizados = 0
+            errores = 0
+
+            logger.info(
+                "Importación de insumos: archivo=%s tamaño=%s filas=%s",
+                getattr(archivo, 'name', 'sin_nombre'),
+                getattr(archivo, 'size', 'sin_tamano'),
+                total_filas,
+            )
 
             with transaction.atomic():
                 for _, row in df.iterrows():
-                    codigo_insumo = row['CÓDIGO DE INSUMO']
-                    codigo_presentacion = row['CÓDIGO DE PRESENTACIÓN']
-                    insumo = (
-                        Insumo.objects.filter(
-                            codigo_insumo=codigo_insumo,
-                            codigo_presentacion=codigo_presentacion,
+                    try:
+                        codigo_insumo = row['CÓDIGO DE INSUMO']
+                        codigo_presentacion = row['CÓDIGO DE PRESENTACIÓN']
+                        insumo = (
+                            Insumo.objects.filter(
+                                codigo_insumo=codigo_insumo,
+                                codigo_presentacion=codigo_presentacion,
+                            )
+                            .order_by('id')
+                            .first()
                         )
-                        .order_by('id')
-                        .first()
-                    )
-                    insumo_data = {
-                        'renglon': row['RENGLÓN'],
-                        'nombre': row['NOMBRE'],
-                        'caracteristicas': row['CARACTERÍSTICAS'],
-                        'nombre_presentacion': row['NOMBRE DE LA PRESENTACIÓN'],
-                        'cantidad_unidad_presentacion': row['CANTIDAD Y UNIDAD DE MEDIDA DE LA PRESENTACIÓN'],
-                        'fecha_actualizacion': ahora,
-                    }
+                        insumo_data = {
+                            'renglon': row['RENGLÓN'],
+                            'nombre': row['NOMBRE'],
+                            'caracteristicas': row['CARACTERÍSTICAS'],
+                            'nombre_presentacion': row['NOMBRE DE LA PRESENTACIÓN'],
+                            'cantidad_unidad_presentacion': row['CANTIDAD Y UNIDAD DE MEDIDA DE LA PRESENTACIÓN'],
+                            'fecha_actualizacion': ahora,
+                        }
 
-                    if insumo:
-                        for field, value in insumo_data.items():
-                            setattr(insumo, field, value)
-                        insumo.save(update_fields=list(insumo_data.keys()))
-                    else:
-                        Insumo.objects.create(
-                            codigo_insumo=codigo_insumo,
-                            codigo_presentacion=codigo_presentacion,
-                            **insumo_data,
+                        if insumo:
+                            for field, value in insumo_data.items():
+                                setattr(insumo, field, value)
+                            insumo.save(update_fields=list(insumo_data.keys()))
+                            actualizados += 1
+                        else:
+                            Insumo.objects.create(
+                                codigo_insumo=codigo_insumo,
+                                codigo_presentacion=codigo_presentacion,
+                                **insumo_data,
+                            )
+                            creados += 1
+                    except Exception:
+                        errores += 1
+                        logger.exception(
+                            "Error al importar insumo fila=%s datos=%s",
+                            _,
+                            row.to_dict(),
                         )
+
+            logger.info(
+                "Importación de insumos completada: filas=%s creados=%s actualizados=%s errores=%s",
+                total_filas,
+                creados,
+                actualizados,
+                errores,
+            )
 
             # Aquí es donde se captura la fecha del formulario de fecha
             fecha_in = fecha_form.save(commit=False)
