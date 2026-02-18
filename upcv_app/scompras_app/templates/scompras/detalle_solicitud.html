@@ -317,6 +317,57 @@
     text-decoration: underline;
   }
 
+  /* === Modal servicio ya registrado (estilo moderno) === */
+  #modalServicioYaRegistrado .modal-content {
+    border: 0;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 18px 45px rgba(17, 37, 70, 0.25);
+    background: linear-gradient(145deg, #f7fbff 0%, #eef5ff 100%);
+  }
+
+  #modalServicioYaRegistrado .modal-header {
+    border-bottom: 0;
+    padding: 1rem 1.2rem 0.3rem;
+    align-items: flex-start;
+  }
+
+  #modalServicioYaRegistrado .modal-body {
+    padding: 0 1.8rem 1.6rem;
+  }
+
+  .servicio-ya-registrado-icono {
+    width: 62px;
+    height: 62px;
+    margin: 0 auto 0.9rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #e54b4b;
+    background: rgba(229, 75, 75, 0.14);
+  }
+
+  .servicio-ya-registrado-logo {
+    max-width: 95px;
+    opacity: 0.9;
+    filter: drop-shadow(0 6px 12px rgba(0, 104, 171, 0.18));
+  }
+
+  .servicio-ya-registrado-texto {
+    color: #2f3a4f;
+    line-height: 1.45;
+    font-size: 0.98rem;
+    margin-bottom: 0;
+  }
+
+  .servicio-ya-registrado-btn {
+    min-width: 150px;
+    border-radius: 10px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+
   
 </style>
 
@@ -557,6 +608,38 @@
   </div>
  {% endif %}
 
+</div>
+
+
+<!-- Modal: Servicio ya registrado -->
+<div class="modal fade" id="modalServicioYaRegistrado" tabindex="-1" aria-labelledby="modalServicioYaRegistradoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-md">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold text-primary" id="modalServicioYaRegistradoLabel">Servicio ya registrado</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body text-center">
+        <div class="servicio-ya-registrado-icono" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 13.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5Zm1-2.75a1 1 0 0 1-2 0V7.5a1 1 0 1 1 2 0v5.25Z"/>
+          </svg>
+        </div>
+
+        <div class="mb-3">
+          <img class="img-fluid servicio-ya-registrado-logo" src="{% static 'assets/images/logo/logo.png' %}" alt="Logo UPCV decorativo">
+        </div>
+
+        <p class="servicio-ya-registrado-texto mb-4">
+          Esta solicitud ya tiene un servicio agregado. Solo se permite 1 servicio por solicitud.
+        </p>
+
+        <button type="button" class="btn btn-primary servicio-ya-registrado-btn" data-bs-dismiss="modal">
+          Entendido
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
 
@@ -884,6 +967,13 @@ $(document).ready(function () {
 
     const alertaModalElement = document.getElementById('modalAlerta');
     const alertaModal = new bootstrap.Modal(alertaModalElement);
+    const modalServicioYaRegistradoElement = document.getElementById('modalServicioYaRegistrado');
+    const modalServicioYaRegistrado = modalServicioYaRegistradoElement
+        ? new bootstrap.Modal(modalServicioYaRegistradoElement)
+        : null;
+    let recargarTrasCerrarModalServicio = false;
+    const solicitudConServicioInicial = {% if servicios %}true{% else %}false{% endif %};
+    const mostrarModalServicioDesdeContexto = {% if servicio_ya_registrado %}true{% else %}false{% endif %};
     const alertaFooter = alertaModalElement.querySelector('.modal-footer');
     const modalTitulo = $('#modalEditarCaracteristicaTitulo');
     const modalEtiqueta = $('#labelCaracteristicaEspecial');
@@ -905,6 +995,27 @@ $(document).ready(function () {
     }
 
     initTooltips();
+
+    function abrirModalServicioYaRegistrado(conRecarga = true) {
+        if (!modalServicioYaRegistrado) {
+            return;
+        }
+        recargarTrasCerrarModalServicio = conRecarga;
+        modalServicioYaRegistrado.show();
+    }
+
+    if (modalServicioYaRegistradoElement) {
+        modalServicioYaRegistradoElement.addEventListener('hidden.bs.modal', function () {
+            if (recargarTrasCerrarModalServicio) {
+                window.location.reload();
+            }
+        });
+    }
+
+    // Permite abrir el modal con bandera en el contexto sin cambiar lógica backend.
+    if (mostrarModalServicioDesdeContexto) {
+        abrirModalServicioYaRegistrado(true);
+    }
 
     function showModalAlert(mensaje, subtitulo = "Notificación del sistema") {
         $('#alerta-mensaje').text(mensaje);
@@ -1344,6 +1455,10 @@ $('#tabla-insumos-agregados').on('click', '.eliminar-servicio', function () {
     
 /* === AGREGAR SERVICIO === */
 $('#btnAgregarServicio').on('click', function() {
+    if (solicitudConServicioInicial) {
+        abrirModalServicioYaRegistrado(true);
+        return;
+    }
     $('#formAgregarServicio')[0].reset();
     $('#modalAgregarServicio').modal('show');
 });
@@ -1362,7 +1477,15 @@ $('#btnGuardarServicio').on('click', function() {
                 showModalAlert('El servicio fue agregado correctamente.', 'Acción realizada');
                 setTimeout(() => location.reload(), 1000);
             } else {
-                showModalAlert('Error: ' + response.error, 'No se pudo agregar el servicio');
+                const errorServicioDuplicado = (response.error || '').toLowerCase().includes('unique')
+                    || (response.error || '').toLowerCase().includes('ya existe')
+                    || (response.error || '').toLowerCase().includes('duplicate');
+                if (errorServicioDuplicado) {
+                    $('#modalAgregarServicio').modal('hide');
+                    abrirModalServicioYaRegistrado(true);
+                } else {
+                    showModalAlert('Error: ' + response.error, 'No se pudo agregar el servicio');
+                }
             }
         },
         error: function(xhr) {
